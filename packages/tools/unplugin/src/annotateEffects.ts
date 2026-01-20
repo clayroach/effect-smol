@@ -18,20 +18,37 @@ type GenerateFn = (
   code?: string | { [filename: string]: string }
 ) => _generate.GeneratorResult
 
-// Handle CommonJS/ESM interop for babel packages
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const traverseModule = _traverse as any
-const traverse: (ast: t.Node, opts: _traverse.TraverseOptions) => void =
-  typeof traverseModule === "function" ? traverseModule :
-    typeof traverseModule.default === "function" ? traverseModule.default :
-      traverseModule.default?.default ?? traverseModule
+type TraverseFn = (ast: t.Node, opts: _traverse.TraverseOptions) => void
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const generateModule = _generate as any
-const generate: GenerateFn =
-  typeof generateModule === "function" ? generateModule :
-    typeof generateModule.default === "function" ? generateModule.default :
-      generateModule.default?.default ?? generateModule
+// Handle CommonJS/ESM interop for babel packages
+// Babel packages can be imported as ESM or CJS with varying module structures
+type BabelModule<T> =
+  | T
+  | { default: T }
+  | { default: { default: T } }
+
+function extractBabelExport<T>(module: BabelModule<T>): T {
+  // Check if module is directly the export (ESM)
+  if (typeof module === "function") {
+    return module
+  }
+  // Check for CJS default export
+  const moduleAsRecord = module as Record<string, unknown>
+  if (moduleAsRecord.default !== undefined) {
+    if (typeof moduleAsRecord.default === "function") {
+      return moduleAsRecord.default as T
+    }
+    // Check for double-wrapped default (CJS -> ESM -> CJS)
+    const defaultAsRecord = moduleAsRecord.default as Record<string, unknown>
+    if (defaultAsRecord?.default !== undefined) {
+      return defaultAsRecord.default as T
+    }
+  }
+  return module as T
+}
+
+const traverse: TraverseFn = extractBabelExport<TraverseFn>(_traverse as BabelModule<TraverseFn>)
+const generate: GenerateFn = extractBabelExport<GenerateFn>(_generate as BabelModule<GenerateFn>)
 
 /**
  * Effect module names that should have pure annotations.
