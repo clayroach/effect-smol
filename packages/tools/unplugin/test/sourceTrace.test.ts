@@ -1,5 +1,5 @@
-import { annotateEffects } from "@effect/unplugin/annotateEffects"
-import { transform } from "@effect/unplugin/sourceTrace"
+import { annotateEffects } from "../src/annotateEffects.ts"
+import { transform } from "../src/sourceTrace.ts"
 import { describe, expect, it } from "vitest"
 
 describe("sourceTrace", () => {

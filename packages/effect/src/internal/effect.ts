@@ -679,6 +679,9 @@ export class FiberImpl<A = any, E = any> implements Fiber.Fiber<A, E> {
     return pipeArguments(this, arguments)
   }
   setServices(services: ServiceMap.ServiceMap<never>): void {
+    if (!services) {
+      return
+    }
     this.services = services
     this.currentScheduler = this.getRef(Scheduler.Scheduler)
     this.currentSpan = services.mapUnsafe.get(Tracer.ParentSpanKey)
@@ -4760,6 +4763,9 @@ export const noopSpan = (options: {
 
 const filterDisablePropagation = (span: Tracer.AnySpan | undefined): Tracer.AnySpan | undefined => {
   if (span) {
+    if (!span.services?.mapUnsafe) {
+      return span
+    }
     return ServiceMap.get(span.services, Tracer.DisablePropagation)
       ? span._tag === "Span" ? filterDisablePropagation(span.parent) : undefined
       : span
