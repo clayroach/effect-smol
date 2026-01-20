@@ -1,0 +1,667 @@
+/**
+ * Core source trace transformer for Effect.gen yield* expressions.
+ *
+ * @since 0.0.1
+ */
+import { parse } from "@babel/parser"
+import * as _traverse from "@babel/traverse"
+import * as _generate from "@babel/generator"
+import * as t from "@babel/types"
+import type {
+  InstrumentableEffect,
+  SourceTraceOptions,
+  SpanInstrumentationOptions,
+  SpanNameFormat
+} from "./types.ts"
+
+type NodePath<T = t.Node> = _traverse.NodePath<T>
+
+type GenerateFn = (
+  ast: t.Node,
+  opts: _generate.GeneratorOptions,
+  code?: string | { [filename: string]: string }
+) => _generate.GeneratorResult
+
+type TraverseFn = (ast: t.Node, opts: _traverse.TraverseOptions) => void
+
+// Handle CommonJS/ESM interop for babel packages
+// Babel packages can be imported as ESM or CJS with varying module structures
+type BabelModule<T> =
+  | T
+  | { default: T }
+  | { default: { default: T } }
+
+function extractBabelExport<T>(module: BabelModule<T>): T {
+  // Check if module is directly the export (ESM)
+  if (typeof module === "function") {
+    return module
+  }
+  // Check for CJS default export
+  const moduleAsRecord = module as Record<string, unknown>
+  if (moduleAsRecord.default !== undefined) {
+    if (typeof moduleAsRecord.default === "function") {
+      return moduleAsRecord.default as T
+    }
+    // Check for double-wrapped default (CJS -> ESM -> CJS)
+    const defaultAsRecord = moduleAsRecord.default as Record<string, unknown>
+    if (defaultAsRecord?.default !== undefined) {
+      return defaultAsRecord.default as T
+    }
+  }
+  return module as T
+}
+
+const traverse: TraverseFn = extractBabelExport<TraverseFn>(_traverse as BabelModule<TraverseFn>)
+const generate: GenerateFn = extractBabelExport<GenerateFn>(_generate as BabelModule<GenerateFn>)
+
+interface StackFrameInfo {
+  readonly name: string
+  readonly location: string
+  readonly varName: string
+}
+
+interface SpanAttributes {
+  readonly filepath: string
+  readonly line: number
+  readonly column: number
+  readonly functionName: string
+}
+
+const ALL_INSTRUMENTABLE: ReadonlyArray<InstrumentableEffect> = [
+  "gen", "fork", "forkDaemon", "forkScoped", "all", "forEach", "filter", "reduce", "iterate", "loop"
+]
+
+/**
+ * Resolves which Effect combinators should be instrumented with spans.
+ */
+function resolveInstrumentable(options: SpanInstrumentationOptions): Set<string> {
+  const include = options.include ?? ALL_INSTRUMENTABLE
+  const exclude = new Set(options.exclude ?? [])
+  return new Set(include.filter((name) => !exclude.has(name)))
+}
+
+/**
+ * Simple glob matcher for common patterns.
+ * Supports: *, **, path/to/file
+ * Normalizes paths by removing leading slashes for matching.
+ */
+function matchesGlob(filepath: string, pattern: string): boolean {
+  const normalizedPath = filepath.replace(/^\/+/, "")
+  const regexPattern = pattern
+    .replace(/\./g, "\\.")
+    .replace(/\*\*/g, ".*")
+    .replace(/\*/g, "[^/]*")
+  const regex = new RegExp(`^${regexPattern}$`)
+  return regex.test(normalizedPath)
+}
+
+/**
+ * Checks if a file matches any of the given patterns.
+ */
+function matchesAnyPattern(filepath: string, patterns: string | ReadonlyArray<string>): boolean {
+  const patternArray = Array.isArray(patterns) ? patterns : [patterns]
+  return patternArray.some((pattern) => matchesGlob(filepath, pattern))
+}
+
+/**
+ * Checks if a function name matches any regex pattern.
+ */
+function matchesAnyRegex(functionName: string, patterns: string | ReadonlyArray<string>): boolean {
+  const patternArray = Array.isArray(patterns) ? patterns : [patterns]
+  return patternArray.some((pattern) => new RegExp(pattern).test(functionName))
+}
+
+/**
+ * Checks if instrumentation should be applied based on strategy.
+ */
+function shouldInstrument(
+  combinator: InstrumentableEffect,
+  filepath: string,
+  functionName: string | null,
+  depth: number,
+  options: SpanInstrumentationOptions
+): boolean {
+  const strategy = options.strategy
+
+  if (!strategy) {
+    return true // No strategy = instrument everything
+  }
+
+  if (strategy.type === "depth") {
+    const globalMax = strategy.maxDepth ?? Infinity
+    const combinatorMax = strategy.perCombinator?.[combinator]
+    const effectiveMax = combinatorMax !== undefined ? combinatorMax : globalMax
+    return depth <= effectiveMax
+  }
+
+  if (strategy.type === "overrides") {
+    const filter = strategy.rules[combinator]
+    if (!filter) {
+      return true // No override for this combinator = allow
+    }
+
+    // Check file filters
+    if (filter.files && !matchesAnyPattern(filepath, filter.files)) {
+      return false
+    }
+    if (filter.excludeFiles && matchesAnyPattern(filepath, filter.excludeFiles)) {
+      return false
+    }
+
+    // Check function filters
+    if (functionName) {
+      if (filter.functions && !matchesAnyRegex(functionName, filter.functions)) {
+        return false
+      }
+      if (filter.excludeFunctions && matchesAnyRegex(functionName, filter.excludeFunctions)) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  return true
+}
+
+/**
+ * @since 0.0.1
+ * @category models
+ */
+export interface TransformResult {
+  readonly code: string
+  readonly map?: unknown
+  readonly transformed: boolean
+}
+
+/**
+ * Determines if a call expression is Effect.gen() or a named import gen().
+ */
+function isEffectGenCall(
+  node: t.CallExpression,
+  effectImportName: string | null,
+  genImportName: string | null
+): boolean {
+  const callee = node.callee
+
+  // Effect.gen(...)
+  if (
+    t.isMemberExpression(callee) &&
+    t.isIdentifier(callee.object) &&
+    callee.object.name === effectImportName &&
+    t.isIdentifier(callee.property) &&
+    callee.property.name === "gen"
+  ) {
+    return true
+  }
+
+  // gen(...) from named import
+  if (t.isIdentifier(callee) && callee.name === genImportName) {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * Extracts function name from a yield* argument expression.
+ */
+function extractFunctionName(node: t.Expression): string {
+  // foo()
+  if (t.isCallExpression(node) && t.isIdentifier(node.callee)) {
+    return node.callee.name
+  }
+
+  // obj.method()
+  if (
+    t.isCallExpression(node) &&
+    t.isMemberExpression(node.callee) &&
+    t.isIdentifier(node.callee.property)
+  ) {
+    return node.callee.property.name
+  }
+
+  // Effect.succeed(...)
+  if (
+    t.isCallExpression(node) &&
+    t.isMemberExpression(node.callee) &&
+    t.isIdentifier(node.callee.object) &&
+    t.isIdentifier(node.callee.property)
+  ) {
+    return `${node.callee.object.name}.${node.callee.property.name}`
+  }
+
+  return "unknown"
+}
+
+/**
+ * Creates a hoisted StackFrame variable declaration.
+ */
+function createStackFrameDeclaration(info: StackFrameInfo): t.VariableDeclaration {
+  return t.variableDeclaration("const", [
+    t.variableDeclarator(
+      t.identifier(info.varName),
+      t.objectExpression([
+        t.objectProperty(t.identifier("name"), t.stringLiteral(info.name)),
+        t.objectProperty(
+          t.identifier("stack"),
+          t.arrowFunctionExpression([], t.stringLiteral(info.location))
+        ),
+        t.objectProperty(t.identifier("parent"), t.identifier("undefined"))
+      ])
+    )
+  ])
+}
+
+/**
+ * Wraps a yield* argument with Effect.updateService.
+ */
+function wrapWithUpdateService(
+  argument: t.Expression,
+  frameVarName: string,
+  effectImportName: string,
+  referencesImportName: string
+): t.CallExpression {
+  return t.callExpression(
+    t.memberExpression(t.identifier(effectImportName), t.identifier("updateService")),
+    [
+      argument,
+      t.memberExpression(t.identifier(referencesImportName), t.identifier("CurrentStackFrame")),
+      t.arrowFunctionExpression(
+        [t.identifier("parent")],
+        t.objectExpression([
+          t.spreadElement(t.identifier(frameVarName)),
+          t.objectProperty(t.identifier("parent"), t.identifier("parent"))
+        ])
+      )
+    ]
+  )
+}
+
+/**
+ * Gets the variable/function name from the AST context.
+ * Handles multiple patterns: direct assignment, arrow functions, object properties, function declarations.
+ */
+function getAssignedVariableName(path: NodePath<t.CallExpression>): string | null {
+  const parent = path.parent
+
+  // Case 1: const program = Effect.gen(...)
+  if (t.isVariableDeclarator(parent) && t.isIdentifier(parent.id)) {
+    return parent.id.name
+  }
+
+  // Case 2: const fetchUser = (id) => Effect.gen(...)
+  if (t.isArrowFunctionExpression(parent)) {
+    const grandparent = path.parentPath?.parent
+    if (t.isVariableDeclarator(grandparent) && t.isIdentifier(grandparent.id)) {
+      return grandparent.id.name
+    }
+  }
+
+  // Case 3: { fetchUser: Effect.gen(...) }
+  if (t.isObjectProperty(parent) && t.isIdentifier(parent.key)) {
+    return parent.key.name
+  }
+
+  // Case 4: function fetchUser() { return Effect.gen(...) }
+  if (t.isReturnStatement(parent)) {
+    const funcParent = path.parentPath?.parentPath?.parent
+    if (t.isFunctionDeclaration(funcParent) && funcParent.id) {
+      return funcParent.id.name
+    }
+  }
+
+  return null
+}
+
+/**
+ * Formats span name based on the nameFormat option.
+ */
+function formatSpanName(
+  combinator: string,
+  functionName: string | null,
+  filename: string,
+  line: number,
+  format: SpanNameFormat
+): string {
+  switch (format) {
+    case "function":
+      return functionName
+        ? `${combinator} (${functionName})`
+        : combinator
+
+    case "location":
+      return `${combinator} (${filename}:${line})`
+
+    case "full":
+      return functionName
+        ? `${combinator} (${functionName} @ ${filename}:${line})`
+        : `${combinator} (${filename}:${line})`
+  }
+}
+
+/**
+ * Wraps an expression with Effect.withSpan() and attributes.
+ */
+function wrapWithSpan(
+  expr: t.Expression,
+  spanName: string,
+  effectImportName: string,
+  attrs: SpanAttributes
+): t.CallExpression {
+  const attributesObject = t.objectExpression([
+    t.objectProperty(t.stringLiteral("code.filepath"), t.stringLiteral(attrs.filepath)),
+    t.objectProperty(t.stringLiteral("code.lineno"), t.numericLiteral(attrs.line)),
+    t.objectProperty(t.stringLiteral("code.column"), t.numericLiteral(attrs.column)),
+    t.objectProperty(t.stringLiteral("code.function"), t.stringLiteral(attrs.functionName))
+  ])
+
+  const optionsObject = t.objectExpression([
+    t.objectProperty(t.identifier("attributes"), attributesObject)
+  ])
+
+  return t.callExpression(
+    t.memberExpression(t.identifier(effectImportName), t.identifier("withSpan")),
+    [expr, t.stringLiteral(spanName), optionsObject]
+  )
+}
+
+/**
+ * Finds or creates the Effect namespace import name.
+ */
+function findOrGetEffectImport(ast: t.File): { effectName: string; genName: string | null } {
+  let effectName: string | null = null
+  let genName: string | null = null
+
+  for (const node of ast.program.body) {
+    if (!t.isImportDeclaration(node)) continue
+    if (node.source.value !== "effect") continue
+
+    for (const specifier of node.specifiers) {
+      // import * as Effect from "effect" or import { Effect } from "effect"
+      if (t.isImportNamespaceSpecifier(specifier)) {
+        effectName = specifier.local.name
+      } else if (t.isImportSpecifier(specifier)) {
+        const imported = t.isIdentifier(specifier.imported)
+          ? specifier.imported.name
+          : specifier.imported.value
+        if (imported === "Effect") {
+          effectName = specifier.local.name
+        } else if (imported === "gen") {
+          genName = specifier.local.name
+        }
+      }
+    }
+  }
+
+  return { effectName: effectName ?? "Effect", genName }
+}
+
+/**
+ * Ensures References is imported from effect.
+ */
+function ensureReferencesImport(ast: t.File): string {
+  for (const node of ast.program.body) {
+    if (!t.isImportDeclaration(node)) continue
+    if (node.source.value !== "effect") continue
+
+    for (const specifier of node.specifiers) {
+      if (t.isImportSpecifier(specifier)) {
+        const imported = t.isIdentifier(specifier.imported)
+          ? specifier.imported.name
+          : specifier.imported.value
+        if (imported === "References") {
+          return specifier.local.name
+        }
+      }
+    }
+
+    // Add References to existing effect import
+    node.specifiers.push(
+      t.importSpecifier(t.identifier("References"), t.identifier("References"))
+    )
+    return "References"
+  }
+
+  // No effect import found - add one (unlikely scenario)
+  const importDecl = t.importDeclaration(
+    [t.importSpecifier(t.identifier("References"), t.identifier("References"))],
+    t.stringLiteral("effect")
+  )
+  ast.program.body.unshift(importDecl)
+  return "References"
+}
+
+/**
+ * Extracts the filename from a full path.
+ */
+function getFileName(filePath: string): string {
+  const parts = filePath.split("/")
+  return parts[parts.length - 1] ?? filePath
+}
+
+/**
+ * Transforms source code to inject source location tracing and span instrumentation.
+ *
+ * @since 0.0.1
+ * @category transform
+ */
+export function transform(
+  code: string,
+  id: string,
+  options: SourceTraceOptions = {}
+): TransformResult {
+  const enableSourceTrace = options.sourceTrace !== false
+  const extractFnName = options.extractFunctionName !== false
+  const spanOptions = options.spans
+  const enableSpans = spanOptions?.enabled === true
+
+  let ast: t.File
+  try {
+    ast = parse(code, {
+      sourceType: "module",
+      plugins: ["typescript", "jsx"],
+      sourceFilename: id
+    })
+  } catch {
+    return { code, transformed: false }
+  }
+
+  const { effectName, genName } = findOrGetEffectImport(ast)
+
+  // No Effect import found
+  if (!effectName && !genName) {
+    return { code, transformed: false }
+  }
+
+  let hasTransformed = false
+  const fileName = getFileName(id)
+
+  // Span instrumentation pass
+  if (enableSpans && effectName) {
+    const instrumentable = resolveInstrumentable(spanOptions!)
+    const nameFormat = spanOptions!.nameFormat ?? "function"
+    const wrappedNodes = new WeakSet<t.CallExpression>()
+    const depthMap = new WeakMap<t.Node, number>()
+
+    // Calculate depth for each node
+    traverse(ast, {
+      CallExpression(path: NodePath<t.CallExpression>) {
+        const callee = path.node.callee
+        if (
+          t.isMemberExpression(callee) &&
+          t.isIdentifier(callee.object) &&
+          callee.object.name === effectName &&
+          t.isIdentifier(callee.property) &&
+          instrumentable.has(callee.property.name)
+        ) {
+          // Find parent Effect call depth
+          let depth = 0
+          let currentPath: NodePath | null = path.parentPath
+          while (currentPath) {
+            const node = currentPath.node
+            if (t.isCallExpression(node) && depthMap.has(node)) {
+              depth = (depthMap.get(node) ?? 0) + 1
+              break
+            }
+            currentPath = currentPath.parentPath
+          }
+          depthMap.set(path.node, depth)
+        }
+      }
+    })
+
+    // Instrument nodes that pass filters
+    traverse(ast, {
+      CallExpression(path: NodePath<t.CallExpression>) {
+        if (wrappedNodes.has(path.node)) return
+
+        const callee = path.node.callee
+        if (!t.isMemberExpression(callee)) return
+        if (!t.isIdentifier(callee.object) || callee.object.name !== effectName) return
+        if (!t.isIdentifier(callee.property)) return
+
+        const methodName = callee.property.name
+        if (!instrumentable.has(methodName)) return
+
+        const loc = path.node.loc
+        if (!loc) return
+
+        const variableName = getAssignedVariableName(path)
+        const depth = depthMap.get(path.node) ?? 0
+
+        // Check if instrumentation should be applied
+        if (!shouldInstrument(methodName as InstrumentableEffect, id, variableName, depth, spanOptions!)) {
+          return
+        }
+
+        const combinator = `effect.${methodName}`
+        const functionName = variableName ?? combinator
+        const spanName = formatSpanName(combinator, variableName, fileName, loc.start.line, nameFormat)
+        const attrs: SpanAttributes = {
+          filepath: id,
+          line: loc.start.line,
+          column: loc.start.column,
+          functionName
+        }
+
+        const wrapped = wrapWithSpan(path.node, spanName, effectName, attrs)
+        wrappedNodes.add(path.node)
+        path.replaceWith(wrapped)
+        hasTransformed = true
+      }
+    })
+  }
+
+  // Source trace pass
+  if (enableSourceTrace) {
+    const framesByLocation = new Map<string, StackFrameInfo>()
+    let frameCounter = 0
+
+    // First pass: collect all yield* locations and create frame info
+    traverse(ast, {
+      CallExpression(path: NodePath<t.CallExpression>) {
+        if (!isEffectGenCall(path.node, effectName, genName)) return
+
+        const generatorArg = path.node.arguments[0]
+        if (!t.isFunctionExpression(generatorArg) || !generatorArg.generator) return
+
+        path.traverse({
+          // Skip nested Effect.gen calls to avoid processing their yield* twice
+          CallExpression(nestedPath: NodePath<t.CallExpression>) {
+            if (isEffectGenCall(nestedPath.node, effectName, genName)) {
+              nestedPath.skip()
+            }
+          },
+          YieldExpression(yieldPath: NodePath<t.YieldExpression>) {
+            // Only process yield* (delegate)
+            if (!yieldPath.node.delegate || !yieldPath.node.argument) return
+
+            const loc = yieldPath.node.loc
+            if (!loc) return
+
+            const location = `${id}:${loc.start.line}:${loc.start.column}`
+
+            if (!framesByLocation.has(location)) {
+              const name = extractFnName
+                ? extractFunctionName(yieldPath.node.argument)
+                : "effect"
+              const varName = `_sf${frameCounter++}`
+              const info: StackFrameInfo = { name, location, varName }
+              framesByLocation.set(location, info)
+            }
+          }
+        })
+      }
+    })
+
+    if (framesByLocation.size > 0) {
+      const referencesName = ensureReferencesImport(ast)
+
+      // Second pass: wrap yield* expressions
+      traverse(ast, {
+        CallExpression(path: NodePath<t.CallExpression>) {
+          if (!isEffectGenCall(path.node, effectName, genName)) return
+
+          const generatorArg = path.node.arguments[0]
+          if (!t.isFunctionExpression(generatorArg) || !generatorArg.generator) return
+
+          path.traverse({
+            // Skip nested Effect.gen calls to avoid processing their yield* twice
+            CallExpression(nestedPath: NodePath<t.CallExpression>) {
+              if (isEffectGenCall(nestedPath.node, effectName, genName)) {
+                nestedPath.skip()
+              }
+            },
+            YieldExpression(yieldPath: NodePath<t.YieldExpression>) {
+              if (!yieldPath.node.delegate || !yieldPath.node.argument) return
+
+              const loc = yieldPath.node.loc
+              if (!loc) return
+
+              const location = `${id}:${loc.start.line}:${loc.start.column}`
+              const frame = framesByLocation.get(location)
+              if (!frame) return
+
+              const wrapped = wrapWithUpdateService(
+                yieldPath.node.argument,
+                frame.varName,
+                effectName!,
+                referencesName
+              )
+              yieldPath.node.argument = wrapped
+              hasTransformed = true
+            }
+          })
+        }
+      })
+
+      // Insert hoisted frame declarations after imports
+      const frameDeclarations = Array.from(framesByLocation.values()).map(createStackFrameDeclaration)
+      let insertIndex = 0
+      for (let i = 0; i < ast.program.body.length; i++) {
+        if (!t.isImportDeclaration(ast.program.body[i])) {
+          insertIndex = i
+          break
+        }
+        insertIndex = i + 1
+      }
+      ast.program.body.splice(insertIndex, 0, ...frameDeclarations)
+    }
+  }
+
+  if (!hasTransformed) {
+    return { code, transformed: false }
+  }
+
+  const result = generate(ast, {
+    sourceMaps: true,
+    sourceFileName: id
+  }, code)
+
+  return {
+    code: result.code,
+    map: result.map,
+    transformed: true
+  }
+}
