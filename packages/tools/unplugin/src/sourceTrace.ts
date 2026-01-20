@@ -7,7 +7,12 @@ import { parse } from "@babel/parser"
 import * as _traverse from "@babel/traverse"
 import * as _generate from "@babel/generator"
 import * as t from "@babel/types"
-import type { InstrumentableEffect, SourceTraceOptions, SpanInstrumentationOptions, SpanNameFormat } from "./types.ts"
+import type {
+  InstrumentableEffect,
+  SourceTraceOptions,
+  SpanInstrumentationOptions,
+  SpanNameFormat
+} from "./types.ts"
 
 type NodePath<T = t.Node> = _traverse.NodePath<T>
 
@@ -73,6 +78,90 @@ function resolveInstrumentable(options: SpanInstrumentationOptions): Set<string>
   const include = options.include ?? ALL_INSTRUMENTABLE
   const exclude = new Set(options.exclude ?? [])
   return new Set(include.filter((name) => !exclude.has(name)))
+}
+
+/**
+ * Simple glob matcher for common patterns.
+ * Supports: *, **, path/to/file
+ * Normalizes paths by removing leading slashes for matching.
+ */
+function matchesGlob(filepath: string, pattern: string): boolean {
+  const normalizedPath = filepath.replace(/^\/+/, "")
+  const regexPattern = pattern
+    .replace(/\./g, "\\.")
+    .replace(/\*\*/g, ".*")
+    .replace(/\*/g, "[^/]*")
+  const regex = new RegExp(`^${regexPattern}$`)
+  return regex.test(normalizedPath)
+}
+
+/**
+ * Checks if a file matches any of the given patterns.
+ */
+function matchesAnyPattern(filepath: string, patterns: string | ReadonlyArray<string>): boolean {
+  const patternArray = Array.isArray(patterns) ? patterns : [patterns]
+  return patternArray.some((pattern) => matchesGlob(filepath, pattern))
+}
+
+/**
+ * Checks if a function name matches any regex pattern.
+ */
+function matchesAnyRegex(functionName: string, patterns: string | ReadonlyArray<string>): boolean {
+  const patternArray = Array.isArray(patterns) ? patterns : [patterns]
+  return patternArray.some((pattern) => new RegExp(pattern).test(functionName))
+}
+
+/**
+ * Checks if instrumentation should be applied based on strategy.
+ */
+function shouldInstrument(
+  combinator: InstrumentableEffect,
+  filepath: string,
+  functionName: string | null,
+  depth: number,
+  options: SpanInstrumentationOptions
+): boolean {
+  const strategy = options.strategy
+
+  if (!strategy) {
+    return true // No strategy = instrument everything
+  }
+
+  if (strategy.type === "depth") {
+    const globalMax = strategy.maxDepth ?? Infinity
+    const combinatorMax = strategy.perCombinator?.[combinator]
+    const effectiveMax = combinatorMax !== undefined ? combinatorMax : globalMax
+    return depth <= effectiveMax
+  }
+
+  if (strategy.type === "overrides") {
+    const filter = strategy.rules[combinator]
+    if (!filter) {
+      return true // No override for this combinator = allow
+    }
+
+    // Check file filters
+    if (filter.files && !matchesAnyPattern(filepath, filter.files)) {
+      return false
+    }
+    if (filter.excludeFiles && matchesAnyPattern(filepath, filter.excludeFiles)) {
+      return false
+    }
+
+    // Check function filters
+    if (functionName) {
+      if (filter.functions && !matchesAnyRegex(functionName, filter.functions)) {
+        return false
+      }
+      if (filter.excludeFunctions && matchesAnyRegex(functionName, filter.excludeFunctions)) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  return true
 }
 
 /**
@@ -393,7 +482,36 @@ export function transform(
     const instrumentable = resolveInstrumentable(spanOptions!)
     const nameFormat = spanOptions!.nameFormat ?? "function"
     const wrappedNodes = new WeakSet<t.CallExpression>()
+    const depthMap = new WeakMap<t.Node, number>()
 
+    // Calculate depth for each node
+    traverse(ast, {
+      CallExpression(path: NodePath<t.CallExpression>) {
+        const callee = path.node.callee
+        if (
+          t.isMemberExpression(callee) &&
+          t.isIdentifier(callee.object) &&
+          callee.object.name === effectName &&
+          t.isIdentifier(callee.property) &&
+          instrumentable.has(callee.property.name)
+        ) {
+          // Find parent Effect call depth
+          let depth = 0
+          let currentPath: NodePath | null = path.parentPath
+          while (currentPath) {
+            const node = currentPath.node
+            if (t.isCallExpression(node) && depthMap.has(node)) {
+              depth = (depthMap.get(node) ?? 0) + 1
+              break
+            }
+            currentPath = currentPath.parentPath
+          }
+          depthMap.set(path.node, depth)
+        }
+      }
+    })
+
+    // Instrument nodes that pass filters
     traverse(ast, {
       CallExpression(path: NodePath<t.CallExpression>) {
         if (wrappedNodes.has(path.node)) return
@@ -410,6 +528,13 @@ export function transform(
         if (!loc) return
 
         const variableName = getAssignedVariableName(path)
+        const depth = depthMap.get(path.node) ?? 0
+
+        // Check if instrumentation should be applied
+        if (!shouldInstrument(methodName as InstrumentableEffect, id, variableName, depth, spanOptions!)) {
+          return
+        }
+
         const combinator = `effect.${methodName}`
         const functionName = variableName ?? combinator
         const spanName = formatSpanName(combinator, variableName, fileName, loc.start.line, nameFormat)
