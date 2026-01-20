@@ -439,4 +439,170 @@ const getUser = Effect.gen(function* () {
       expect(result.code).toContain("References.CurrentStackFrame")
     })
   })
+
+  describe("depth strategy", () => {
+    it("respects maxDepth limit", () => {
+      const code = `
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  const nested = Effect.all([
+    Effect.forEach([1, 2], (n) => Effect.succeed(n))
+  ])
+})
+`
+      const result = transform(code, "/src/app.ts", {
+        sourceTrace: false,
+        spans: {
+          enabled: true,
+          strategy: { type: "depth", maxDepth: 1 }
+        }
+      })
+      expect(result.transformed).toBe(true)
+      expect(result.code).toContain('"effect.gen (program)"') // depth 0
+      expect(result.code).toContain('"effect.all (nested)"') // depth 1
+      expect(result.code).not.toContain('"effect.forEach"') // depth 2 - excluded
+    })
+
+    it("respects perCombinator depth limits", () => {
+      const code = `
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  const items = yield* Effect.all([
+    Effect.succeed(1),
+    Effect.succeed(2)
+  ])
+  const bg = Effect.fork(Effect.succeed(3))
+})
+`
+      const result = transform(code, "/src/app.ts", {
+        sourceTrace: false,
+        spans: {
+          enabled: true,
+          strategy: {
+            type: "depth",
+            perCombinator: {
+              fork: 0,  // Only top-level forks
+              all: 1    // Allow all at depth 0-1
+            }
+          }
+        }
+      })
+      expect(result.transformed).toBe(true)
+      expect(result.code).toContain('"effect.gen (program)"')
+      expect(result.code).toContain('"effect.all"')
+      expect(result.code).not.toContain('"effect.fork (bg)"') // depth 1, but fork maxDepth=0 so excluded
+    })
+  })
+
+  describe("override strategy", () => {
+    it("filters by file pattern", () => {
+      const code = `
+import { Effect } from "effect"
+
+const program = Effect.gen(function* () {
+  yield* Effect.succeed(1)
+})
+`
+      const resultIncluded = transform(code, "/src/workers/task.ts", {
+        sourceTrace: false,
+        spans: {
+          enabled: true,
+          strategy: {
+            type: "overrides",
+            rules: {
+              gen: { files: "src/workers/**" }
+            }
+          }
+        }
+      })
+      expect(resultIncluded.transformed).toBe(true)
+
+      const resultExcluded = transform(code, "/src/utils/helpers.ts", {
+        sourceTrace: false,
+        spans: {
+          enabled: true,
+          strategy: {
+            type: "overrides",
+            rules: {
+              gen: { files: "src/workers/**" }
+            }
+          }
+        }
+      })
+      expect(resultExcluded.transformed).toBe(false)
+    })
+
+    it("filters by excludeFiles pattern", () => {
+      const code = `
+import { Effect } from "effect"
+
+const test = Effect.gen(function* () {
+  yield* Effect.succeed(1)
+})
+`
+      const result = transform(code, "/src/app.test.ts", {
+        sourceTrace: false,
+        spans: {
+          enabled: true,
+          strategy: {
+            type: "overrides",
+            rules: {
+              gen: { excludeFiles: "**/*.test.ts" }
+            }
+          }
+        }
+      })
+      expect(result.transformed).toBe(false)
+    })
+
+    it("filters by function name regex", () => {
+      const code = `
+import { Effect } from "effect"
+
+const backgroundTask = Effect.fork(Effect.succeed(1))
+const userTask = Effect.fork(Effect.succeed(2))
+`
+      const result = transform(code, "/src/app.ts", {
+        sourceTrace: false,
+        spans: {
+          enabled: true,
+          strategy: {
+            type: "overrides",
+            rules: {
+              fork: { functions: "^background.*" }
+            }
+          }
+        }
+      })
+      expect(result.transformed).toBe(true)
+      expect(result.code).toContain('"effect.fork (backgroundTask)"')
+      expect(result.code).not.toContain('"effect.fork (userTask)"')
+    })
+
+    it("filters by excludeFunctions regex", () => {
+      const code = `
+import { Effect } from "effect"
+
+const _internal = Effect.gen(function* () { yield* Effect.succeed(1) })
+const publicApi = Effect.gen(function* () { yield* Effect.succeed(2) })
+`
+      const result = transform(code, "/src/app.ts", {
+        sourceTrace: false,
+        spans: {
+          enabled: true,
+          strategy: {
+            type: "overrides",
+            rules: {
+              gen: { excludeFunctions: "^_.*" }
+            }
+          }
+        }
+      })
+      expect(result.transformed).toBe(true)
+      expect(result.code).not.toContain('"effect.gen (_internal)"')
+      expect(result.code).toContain('"effect.gen (publicApi)"')
+    })
+  })
 })

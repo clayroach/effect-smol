@@ -37,6 +37,64 @@ export type InstrumentableEffect =
 export type SpanNameFormat = "function" | "location" | "full"
 
 /**
+ * File/function filtering for a specific combinator.
+ *
+ * @since 0.0.1
+ * @category models
+ */
+export interface CombinatorFilter {
+  /**
+   * File glob patterns to include (single or array)
+   */
+  readonly files?: string | ReadonlyArray<string> | undefined
+  /**
+   * File glob patterns to exclude (single or array)
+   */
+  readonly excludeFiles?: string | ReadonlyArray<string> | undefined
+  /**
+   * Function name regex patterns to include (single or array)
+   */
+  readonly functions?: string | ReadonlyArray<string> | undefined
+  /**
+   * Function name regex patterns to exclude (single or array)
+   */
+  readonly excludeFunctions?: string | ReadonlyArray<string> | undefined
+}
+
+/**
+ * Depth-based instrumentation strategy.
+ *
+ * @since 0.0.1
+ * @category models
+ */
+export interface DepthInstrumentationStrategy {
+  readonly type: "depth"
+  /**
+   * Global max nesting depth for all combinators (default: Infinity)
+   * 0 = top-level only, 1 = one level deep, etc.
+   */
+  readonly maxDepth?: number | undefined
+  /**
+   * Per-combinator depth limits (overrides maxDepth)
+   */
+  readonly perCombinator?: Partial<Record<InstrumentableEffect, number>> | undefined
+}
+
+/**
+ * Override-based instrumentation strategy with file/function filtering.
+ *
+ * @since 0.0.1
+ * @category models
+ */
+export interface OverrideInstrumentationStrategy {
+  readonly type: "overrides"
+  /**
+   * Per-combinator filter rules
+   */
+  readonly rules: Partial<Record<InstrumentableEffect, CombinatorFilter>>
+}
+
+/**
  * Options for auto-instrumentation with withSpan.
  *
  * @since 0.0.1
@@ -64,6 +122,12 @@ export interface SpanInstrumentationOptions {
    * @default "function"
    */
   readonly nameFormat?: SpanNameFormat | undefined
+  /**
+   * Instrumentation strategy for fine-grained control.
+   * - depth: Limit by nesting depth
+   * - overrides: File/function filtering per combinator
+   */
+  readonly strategy?: DepthInstrumentationStrategy | OverrideInstrumentationStrategy | undefined
 }
 
 /**
