@@ -7,7 +7,7 @@ import { parse } from "@babel/parser"
 import * as _traverse from "@babel/traverse"
 import * as _generate from "@babel/generator"
 import * as t from "@babel/types"
-import type { InstrumentableEffect, SourceTraceOptions, SpanInstrumentationOptions } from "./types.ts"
+import type { InstrumentableEffect, SourceTraceOptions, SpanInstrumentationOptions, SpanNameFormat } from "./types.ts"
 
 type NodePath<T = t.Node> = _traverse.NodePath<T>
 
@@ -36,6 +36,13 @@ interface StackFrameInfo {
   readonly name: string
   readonly location: string
   readonly varName: string
+}
+
+interface SpanAttributes {
+  readonly filepath: string
+  readonly line: number
+  readonly column: number
+  readonly functionName: string
 }
 
 const ALL_INSTRUMENTABLE: ReadonlyArray<InstrumentableEffect> = [
@@ -166,37 +173,90 @@ function wrapWithUpdateService(
 }
 
 /**
- * Gets the variable name from a variable declarator parent.
+ * Gets the variable/function name from the AST context.
+ * Handles multiple patterns: direct assignment, arrow functions, object properties, function declarations.
  */
 function getAssignedVariableName(path: NodePath<t.CallExpression>): string | null {
   const parent = path.parent
+
+  // Case 1: const program = Effect.gen(...)
   if (t.isVariableDeclarator(parent) && t.isIdentifier(parent.id)) {
     return parent.id.name
   }
+
+  // Case 2: const fetchUser = (id) => Effect.gen(...)
+  if (t.isArrowFunctionExpression(parent)) {
+    const grandparent = path.parentPath?.parent
+    if (t.isVariableDeclarator(grandparent) && t.isIdentifier(grandparent.id)) {
+      return grandparent.id.name
+    }
+  }
+
+  // Case 3: { fetchUser: Effect.gen(...) }
+  if (t.isObjectProperty(parent) && t.isIdentifier(parent.key)) {
+    return parent.key.name
+  }
+
+  // Case 4: function fetchUser() { return Effect.gen(...) }
+  if (t.isReturnStatement(parent)) {
+    const funcParent = path.parentPath?.parentPath?.parent
+    if (t.isFunctionDeclaration(funcParent) && funcParent.id) {
+      return funcParent.id.name
+    }
+  }
+
   return null
 }
 
 /**
- * Creates a span name from variable name or location.
+ * Formats span name based on the nameFormat option.
  */
-function createSpanName(variableName: string | null, fileName: string, line: number): string {
-  if (variableName) {
-    return `${variableName} (${fileName}:${line})`
+function formatSpanName(
+  combinator: string,
+  functionName: string | null,
+  filename: string,
+  line: number,
+  format: SpanNameFormat
+): string {
+  switch (format) {
+    case "function":
+      return functionName
+        ? `${combinator} (${functionName})`
+        : combinator
+
+    case "location":
+      return `${combinator} (${filename}:${line})`
+
+    case "full":
+      return functionName
+        ? `${combinator} (${functionName} @ ${filename}:${line})`
+        : `${combinator} (${filename}:${line})`
   }
-  return `${fileName}:${line}`
 }
 
 /**
- * Wraps an expression with Effect.withSpan().
+ * Wraps an expression with Effect.withSpan() and attributes.
  */
 function wrapWithSpan(
   expr: t.Expression,
   spanName: string,
-  effectImportName: string
+  effectImportName: string,
+  attrs: SpanAttributes
 ): t.CallExpression {
+  const attributesObject = t.objectExpression([
+    t.objectProperty(t.stringLiteral("code.filepath"), t.stringLiteral(attrs.filepath)),
+    t.objectProperty(t.stringLiteral("code.lineno"), t.numericLiteral(attrs.line)),
+    t.objectProperty(t.stringLiteral("code.column"), t.numericLiteral(attrs.column)),
+    t.objectProperty(t.stringLiteral("code.function"), t.stringLiteral(attrs.functionName))
+  ])
+
+  const optionsObject = t.objectExpression([
+    t.objectProperty(t.identifier("attributes"), attributesObject)
+  ])
+
   return t.callExpression(
     t.memberExpression(t.identifier(effectImportName), t.identifier("withSpan")),
-    [expr, t.stringLiteral(spanName)]
+    [expr, t.stringLiteral(spanName), optionsObject]
   )
 }
 
@@ -314,6 +374,7 @@ export function transform(
   // Span instrumentation pass
   if (enableSpans && effectName) {
     const instrumentable = resolveInstrumentable(spanOptions!)
+    const nameFormat = spanOptions!.nameFormat ?? "function"
     const wrappedNodes = new WeakSet<t.CallExpression>()
 
     traverse(ast, {
@@ -332,9 +393,17 @@ export function transform(
         if (!loc) return
 
         const variableName = getAssignedVariableName(path)
-        const spanName = createSpanName(variableName, fileName, loc.start.line)
+        const combinator = `effect.${methodName}`
+        const functionName = variableName ?? combinator
+        const spanName = formatSpanName(combinator, variableName, fileName, loc.start.line, nameFormat)
+        const attrs: SpanAttributes = {
+          filepath: id,
+          line: loc.start.line,
+          column: loc.start.column,
+          functionName
+        }
 
-        const wrapped = wrapWithSpan(path.node, spanName, effectName)
+        const wrapped = wrapWithSpan(path.node, spanName, effectName, attrs)
         wrappedNodes.add(path.node)
         path.replaceWith(wrapped)
         hasTransformed = true

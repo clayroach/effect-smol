@@ -29,6 +29,14 @@ export type InstrumentableEffect =
   | "loop"
 
 /**
+ * Span name format options.
+ *
+ * @since 0.0.1
+ * @category models
+ */
+export type SpanNameFormat = "function" | "location" | "full"
+
+/**
  * Options for auto-instrumentation with withSpan.
  *
  * @since 0.0.1
@@ -48,6 +56,14 @@ export interface SpanInstrumentationOptions {
    * Effect combinators to exclude from instrumentation.
    */
   readonly exclude?: ReadonlyArray<InstrumentableEffect> | undefined
+  /**
+   * Span name format.
+   * - "function": `effect.gen (fetchUser)` - combinator + function name (DEFAULT)
+   * - "location": `effect.gen (index.ts:23)` - combinator + file:line
+   * - "full": `effect.gen (fetchUser @ index.ts:23)` - all info
+   * @default "function"
+   */
+  readonly nameFormat?: SpanNameFormat | undefined
 }
 
 /**
