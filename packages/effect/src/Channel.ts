@@ -3013,6 +3013,69 @@ export const filter: {
   ))
 
 /**
+ * @since 4.0.0
+ * @category Filtering
+ */
+export const filterMap: {
+  <OutElem, B, X>(
+    filter: Filter.Filter<OutElem, B, X>
+  ): <OutErr, OutDone, InElem, InErr, InDone, Env>(
+    self: Channel<OutElem, OutErr, OutDone, InElem, InErr, InDone, Env>
+  ) => Channel<B, OutErr, OutDone, InElem, InErr, InDone, Env>
+  <OutElem, OutErr, OutDone, InElem, InErr, InDone, Env, B, X>(
+    self: Channel<OutElem, OutErr, OutDone, InElem, InErr, InDone, Env>,
+    filter: Filter.Filter<OutElem, B, X>
+  ): Channel<B, OutErr, OutDone, InElem, InErr, InDone, Env>
+} = dual(2, <OutElem, OutErr, OutDone, InElem, InErr, InDone, Env, B, X>(
+  self: Channel<OutElem, OutErr, OutDone, InElem, InErr, InDone, Env>,
+  filter: Filter.Filter<OutElem, B, X>
+): Channel<B, OutErr, OutDone, InElem, InErr, InDone, Env> =>
+  fromTransform((upstream, scope) =>
+    Effect.map(
+      toTransform(self)(upstream, scope),
+      (pull) =>
+        Effect.flatMap(pull, function loop(elem): Pull.Pull<B, OutErr, OutDone> {
+          const result = filter(elem)
+          return Filter.isFail(result) ? Effect.flatMap(pull, loop) : Effect.succeed(result)
+        })
+    )
+  ))
+
+/**
+ * @since 4.0.0
+ * @category Filtering
+ */
+export const filterMapEffect: {
+  <OutElem, B, X, EX, RX>(
+    filter: Filter.FilterEffect<OutElem, B, X, EX, RX>
+  ): <OutErr, OutDone, InElem, InErr, InDone, Env>(
+    self: Channel<OutElem, OutErr, OutDone, InElem, InErr, InDone, Env>
+  ) => Channel<B, OutErr | EX, OutDone, InElem, InErr, InDone, Env | RX>
+  <OutElem, OutErr, OutDone, InElem, InErr, InDone, Env, B, X, EX, RX>(
+    self: Channel<OutElem, OutErr, OutDone, InElem, InErr, InDone, Env>,
+    filter: Filter.FilterEffect<OutElem, B, X, EX, RX>
+  ): Channel<B, OutErr | EX, OutDone, InElem, InErr, InDone, Env | RX>
+} = dual(2, <OutElem, OutErr, OutDone, InElem, InErr, InDone, Env, B, X, EX, RX>(
+  self: Channel<OutElem, OutErr, OutDone, InElem, InErr, InDone, Env>,
+  filter: Filter.FilterEffect<OutElem, B, X, EX, RX>
+): Channel<B, OutErr | EX, OutDone, InElem, InErr, InDone, Env | RX> =>
+  fromTransform((upstream, scope) =>
+    Effect.map(
+      toTransform(self)(upstream, scope),
+      (pull) =>
+        Effect.flatMap(pull, function loop(elem): Pull.Pull<B, OutErr | EX, OutDone, RX> {
+          return Effect.flatMap(
+            filter(elem),
+            (result) =>
+              Filter.isFail(result)
+                ? Effect.flatMap(pull, loop)
+                : Effect.succeed(result)
+          )
+        })
+    )
+  ))
+
+/**
  * Filters arrays of elements emitted by a channel, applying the filter
  * to each element within the arrays and only emitting non-empty filtered arrays.
  *
@@ -3127,16 +3190,10 @@ export const filterMapArray: {
   self: Channel<Arr.NonEmptyReadonlyArray<OutElem>, OutErr, OutDone, InElem, InErr, InDone, Env>,
   filter: Filter.Filter<OutElem, B, X>
 ): Channel<Arr.NonEmptyReadonlyArray<B>, OutErr, OutDone, InElem, InErr, InDone, Env> =>
-  transformPull(self, (pull) =>
-    Effect.succeed(Effect.flatMap(
-      pull,
-      function loop(arr): Pull.Pull<Arr.NonEmptyReadonlyArray<B>, OutErr, OutDone> {
-        const [passes] = Arr.partitionFilter(arr, filter)
-        return Arr.isReadonlyArrayNonEmpty(passes)
-          ? Effect.succeed(passes)
-          : Effect.flatMap(pull, loop)
-      }
-    ))))
+  filterMap(self, (arr) => {
+    const [passes] = Arr.partitionFilter(arr, filter)
+    return Arr.isReadonlyArrayNonEmpty(passes) ? passes : Filter.failVoid
+  }))
 
 /**
  * @since 4.0.0
@@ -3156,19 +3213,11 @@ export const filterMapArrayEffect: {
   self: Channel<Arr.NonEmptyReadonlyArray<OutElem>, OutErr, OutDone, InElem, InErr, InDone, Env>,
   filter: Filter.FilterEffect<OutElem, B, X, EX, RX>
 ): Channel<Arr.NonEmptyReadonlyArray<B>, OutErr | EX, OutDone, InElem, InErr, InDone, Env | RX> =>
-  transformPull(self, (pull) =>
-    Effect.succeed(Effect.flatMap(
-      pull,
-      function loop(arr): Pull.Pull<Arr.NonEmptyReadonlyArray<B>, OutErr | EX, OutDone, RX> {
-        return Effect.flatMap(
-          Effect.filterMap(arr, filter),
-          (passes) =>
-            Arr.isReadonlyArrayNonEmpty(passes)
-              ? Effect.succeed(passes)
-              : Effect.flatMap(pull, loop)
-        )
-      }
-    ))))
+  filterMapEffect(self, (arr) =>
+    Effect.map(
+      Effect.filterMap(arr, filter),
+      (passes) => Arr.isReadonlyArrayNonEmpty(passes) ? passes : Filter.failVoid
+    )))
 
 /**
  * Statefully maps over a channel with an accumulator, where each element can produce multiple output values.

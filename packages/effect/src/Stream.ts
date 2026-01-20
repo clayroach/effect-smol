@@ -308,6 +308,12 @@ export const fromEffectDrain = <A, E, R>(effect: Effect.Effect<A, E, R>): Stream
   fromPull(Effect.succeed(Effect.flatMap(effect, () => Cause.done())))
 
 /**
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.repeatEffect`
+ *
  * @since 4.0.0
  * @category constructors
  */
@@ -317,6 +323,12 @@ export const fromEffectRepeat = <A, E, R>(effect: Effect.Effect<A, E, R>): Strea
 /**
  * Creates a stream from an effect producing a value of type `A`, which is
  * repeated using the specified schedule.
+ *
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.repeatEffectWithSchedule`
  *
  * @since 2.0.0
  * @category constructors
@@ -477,6 +489,15 @@ export const toChannel = <A, E, R>(
  * By default it uses an "unbounded" buffer size.
  * You can customize the buffer size and strategy by passing an object as the
  * second argument with the `bufferSize` and `strategy` fields.
+ *
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.async`
+ * - `Stream.asyncEffect`
+ * - `Stream.asyncPush`
+ * - `Stream.asyncScoped`
  *
  * @example
  * ```ts
@@ -776,6 +797,12 @@ export const fromIterableEffectRepeat = <A, E, R>(
  * This function creates a Stream that emits all values from the provided array.
  * If the array is empty, it returns an empty Stream.
  *
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.fromChunk`
+ *
  * @example
  * ```ts
  * import { Effect, Stream } from "effect"
@@ -807,6 +834,12 @@ export const fromArrayEffect = <A, E, R>(
 
 /**
  * Creates a stream from some ararys.
+ *
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.fromChunks`
  *
  * @since 4.0.0
  * @category constructors
@@ -1297,6 +1330,12 @@ export const mapBoth: {
   ))
 
 /**
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.mapChunks`
+ *
  * @since 2.0.0
  * @category mapping
  */
@@ -1398,6 +1437,12 @@ export const flattenEffect: {
 ): Stream<A, EX | E, RX | R> => mapEffect(self, identity, options))
 
 /**
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.mapChunksEffect`
+ *
  * @since 4.0.0
  * @category mapping
  */
@@ -1721,6 +1766,12 @@ export const flatten: {
 /**
  * Flattens a stream of non-empty arrays into a single stream.
  *
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.flattenChunks`
+ *
  * @since 4.0.0
  * @category sequencing
  */
@@ -1891,6 +1942,12 @@ export const forever = <A, E, R>(self: Stream<A, E, R>): Stream<A, E, R> => from
 
 /**
  * Flattens a stream of iterables into a single stream.
+ *
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.flattenIterables`
  *
  * @since 4.0.0
  * @category sequencing
@@ -2186,6 +2243,12 @@ const zipArrays = <AL, AR, A>(
 /**
  * Zips this stream with another stream using a function that operates on arrays
  * (chunks) of elements rather than individual elements.
+ *
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.zipWithChunks`
  *
  * @since 2.0.0
  * @category zipping
@@ -2857,7 +2920,7 @@ export const filterMapEffect: {
  * @since 2.0.0
  * @category Filtering
  */
-export const partition: {
+export const partitionFilter: {
   <A, B, X>(filter: Filter.Filter<A, B, X>, options?: {
     readonly capacity?: number | "unbounded" | undefined
   }): <E, R>(self: Stream<A, E, R>) => Effect.Effect<
@@ -2891,7 +2954,7 @@ export const partition: {
     R | Scope.Scope
   > =>
     Effect.map(
-      partitionQueue(filter, options)(self),
+      partitionFilterQueue(filter, options)(self),
       ([passes, fails]) => [fromQueue(passes), fromQueue(fails)] as const
     )
 )
@@ -2900,7 +2963,7 @@ export const partition: {
  * @since 4.0.0
  * @category Filtering
  */
-export const partitionQueue: {
+export const partitionFilterQueue: {
   <A, B, X>(filter: Filter.Filter<A, B, X>, options?: {
     readonly capacity?: number | "unbounded" | undefined
   }): <E, R>(self: Stream<A, E, R>) => Effect.Effect<
@@ -2977,7 +3040,7 @@ export const partitionQueue: {
  * @since 4.0.0
  * @category Filtering
  */
-export const partitionEffect: {
+export const partitionFilterEffect: {
   <A, B, X, EX, RX>(filter: Filter.FilterEffect<A, B, X, EX, RX>, options?: {
     readonly capacity?: number | "unbounded" | undefined
     readonly concurrency?: number | "unbounded" | undefined
@@ -3015,7 +3078,72 @@ export const partitionEffect: {
   > =>
     self.pipe(
       mapEffect(filter, options),
-      partition(identity, options)
+      partitionFilter(identity, options)
+    )
+)
+
+/**
+ * Splits a stream into two substreams based on a predicate.
+ *
+ * The faster stream may advance up to `bufferSize` elements ahead of the slower
+ * one.
+ *
+ * @since 4.0.0
+ * @category Filtering
+ */
+export const partition: {
+  <C extends A, B extends A, A = C>(
+    refinement: Refinement<NoInfer<A>, B>,
+    options?: { readonly bufferSize?: number | undefined }
+  ): <E, R>(
+    self: Stream<C, E, R>
+  ) => Effect.Effect<
+    [excluded: Stream<Exclude<C, B>, E>, satisfying: Stream<B, E>],
+    never,
+    R | Scope.Scope
+  >
+  <A>(
+    predicate: Predicate<NoInfer<A>>,
+    options?: { readonly bufferSize?: number | undefined }
+  ): <E, R>(
+    self: Stream<A, E, R>
+  ) => Effect.Effect<
+    [excluded: Stream<A, E>, satisfying: Stream<A, E>],
+    never,
+    R | Scope.Scope
+  >
+  <C extends A, E, R, B extends A, A = C>(
+    self: Stream<C, E, R>,
+    refinement: Refinement<A, B>,
+    options?: { readonly bufferSize?: number | undefined }
+  ): Effect.Effect<
+    [excluded: Stream<Exclude<C, B>, E>, satisfying: Stream<B, E>],
+    never,
+    R | Scope.Scope
+  >
+  <A, E, R>(
+    self: Stream<A, E, R>,
+    predicate: Predicate<A>,
+    options?: { readonly bufferSize?: number | undefined }
+  ): Effect.Effect<
+    [excluded: Stream<A, E>, satisfying: Stream<A, E>],
+    never,
+    R | Scope.Scope
+  >
+} = dual(
+  (args) => isStream(args[0]),
+  <A, E, R>(
+    self: Stream<A, E, R>,
+    predicate: Predicate<NoInfer<A>>,
+    options?: { readonly bufferSize?: number | undefined }
+  ): Effect.Effect<
+    [excluded: Stream<A, E>, satisfying: Stream<A, E>],
+    never,
+    R | Scope.Scope
+  > =>
+    Effect.map(
+      partitionFilter(self, Filter.fromPredicate(predicate), { capacity: options?.bufferSize ?? 16 }),
+      ([passes, fails]) => [fails, passes] as const
     )
 )
 
@@ -3123,6 +3251,12 @@ export const buffer: {
  * Allows a faster producer to progress independently of a slower consumer by
  * buffering up to `capacity` elements in a queue.
  *
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.bufferChunks`
+ *
  * @since 2.0.0
  * @category utils
  */
@@ -3150,6 +3284,12 @@ export const bufferArray: {
 
 /**
  * Handles stream failures by examining the full Cause of failure.
+ *
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.catchAllCause`
  *
  * @example
  * ```ts
@@ -3189,6 +3329,12 @@ export const catchCause: {
   ))
 
 /**
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.tapErrorCause`
+ *
  * @since 4.0.0
  * @category Error handling
  */
@@ -3224,11 +3370,67 @@ const catch_: {
 
 export {
   /**
+   * **Previously Known As**
+   *
+   * This API replaces the following from Effect 3.x:
+   *
+   * - `Stream.catchAll`
+   *
    * @since 4.0.0
    * @category Error handling
    */
   catch_ as catch
 }
+
+/**
+ * Recovers from specific errors based on a predicate.
+ *
+ * @example
+ * ```ts
+ * import { Stream } from "effect"
+ *
+ * class HttpError {
+ *   readonly _tag = "HttpError"
+ * }
+ *
+ * const stream = Stream.fail(new HttpError())
+ *
+ * const recovered = stream.pipe(
+ *   Stream.catchIf(
+ *     (error) => error._tag === "HttpError",
+ *     () => Stream.make("recovered")
+ *   )
+ * )
+ * ```
+ *
+ * @since 4.0.0
+ * @category Error handling
+ */
+export const catchIf: {
+  <E, EB extends E, A2, E2, R2>(
+    refinement: Refinement<NoInfer<E>, EB>,
+    f: (e: EB) => Stream<A2, E2, R2>
+  ): <A, R>(self: Stream<A, E, R>) => Stream<A2 | A, E2 | Exclude<E, EB>, R2 | R>
+  <E, A2, E2, R2>(
+    predicate: Predicate<NoInfer<E>>,
+    f: (e: NoInfer<E>) => Stream<A2, E2, R2>
+  ): <A, R>(self: Stream<A, E, R>) => Stream<A2 | A, E | E2, R2 | R>
+  <A, E, R, EB extends E, A2, E2, R2>(
+    self: Stream<A, E, R>,
+    refinement: Refinement<E, EB>,
+    f: (e: EB) => Stream<A2, E2, R2>
+  ): Stream<A | A2, E2 | Exclude<E, EB>, R | R2>
+  <A, E, R, A2, E2, R2>(
+    self: Stream<A, E, R>,
+    predicate: Predicate<E>,
+    f: (e: E) => Stream<A2, E2, R2>
+  ): Stream<A | A2, E | E2, R | R2>
+} = dual(3, <A, E, R, EB extends E, A2, E2, R2>(
+  self: Stream<A, E, R>,
+  predicate: Predicate<E> | Refinement<E, EB>,
+  f: (e: EB) => Stream<A2, E2, R2>
+): Stream<A | A2, E | E2, R | R2> =>
+  catchFilter(self, Filter.fromPredicate(predicate as Predicate<E>), f as any) as any)
 
 /**
  * @since 4.0.0
@@ -3252,6 +3454,12 @@ export const tapError: {
   ))
 
 /**
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.catchSome`
+ *
  * @since 4.0.0
  * @category Error handling
  */
@@ -3399,6 +3607,12 @@ export const mapError: {
 
 /**
  * Conditionally handles stream failures based on a predicate applied to the Cause.
+ *
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.catchSomeCause`
  *
  * @example
  * ```ts
@@ -4305,6 +4519,12 @@ export const combine: {
  * and conceptually "offer" it to the destination stream. `f` can maintain
  * some internal state to control the combining process, with the initial
  * state being specified by `s`.
+ *
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.combineChunks`
  *
  * @since 2.0.0
  * @category utils
@@ -6567,6 +6787,12 @@ export const runLast = <A, E, R>(self: Stream<A, E, R>): Effect.Effect<Option.Op
 /**
  * Consumes all elements of the stream, passing them to the specified
  * callback.
+ *
+ * **Previously Known As**
+ *
+ * This API replaces the following from Effect 3.x:
+ *
+ * - `Stream.runForEachChunk`
  *
  * @example
  * ```ts
