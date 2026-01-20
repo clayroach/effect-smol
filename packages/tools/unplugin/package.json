@@ -1,7 +1,7 @@
 {
   "name": "@clayroach/effect-unplugin",
   "type": "module",
-  "version": "4.0.0-source-tracing.2",
+  "version": "4.0.0-source-tracing.3",
   "license": "MIT",
   "description": "Build-time AST transformer for Effect source location tracing",
   "homepage": "https://github.com/clayroach/effect",
@@ -91,7 +91,7 @@
     "coverage": "vitest --coverage"
   },
   "peerDependencies": {
-    "@clayroach/effect": "4.0.0-source-tracing.2"
+    "@clayroach/effect": "4.0.0-source-tracing.3"
   },
   "dependencies": {
     "@babel/generator": "^7.27.5",
