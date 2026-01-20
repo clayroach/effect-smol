@@ -18,11 +18,20 @@ type GenerateFn = (
   code?: string | { [filename: string]: string }
 ) => _generate.GeneratorResult
 
-// Handle CommonJS default exports - runtime interop
+// Handle CommonJS/ESM interop for babel packages
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const traverse: (ast: t.Node, opts: _traverse.TraverseOptions) => void = (_traverse as any).default ?? _traverse
+const traverseModule = _traverse as any
+const traverse: (ast: t.Node, opts: _traverse.TraverseOptions) => void =
+  typeof traverseModule === "function" ? traverseModule :
+    typeof traverseModule.default === "function" ? traverseModule.default :
+      traverseModule.default?.default ?? traverseModule
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const generate: GenerateFn = (_generate as any).default ?? _generate
+const generateModule = _generate as any
+const generate: GenerateFn =
+  typeof generateModule === "function" ? generateModule :
+    typeof generateModule.default === "function" ? generateModule.default :
+      generateModule.default?.default ?? generateModule
 
 /**
  * Effect module names that should have pure annotations.
