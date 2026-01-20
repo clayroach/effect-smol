@@ -1,7 +1,7 @@
 {
   "name": "@clayroach/effect",
   "type": "module",
-  "version": "4.0.0-source-tracing.2",
+  "version": "4.0.0-source-tracing.3",
   "license": "MIT",
   "description": "The missing standard library for TypeScript, for writing production-grade software. (Fork with source tracing)",
   "homepage": "https://github.com/clayroach/effect",
