@@ -1,17 +1,17 @@
 {
-  "name": "effect",
+  "name": "@clayroach/effect",
   "type": "module",
-  "version": "4.0.0",
+  "version": "4.0.0-source-tracing.0",
   "license": "MIT",
-  "description": "The missing standard library for TypeScript, for writing production-grade software.",
-  "homepage": "https://effect.website",
+  "description": "The missing standard library for TypeScript, for writing production-grade software. (Fork with source tracing)",
+  "homepage": "https://github.com/clayroach/effect",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Effect-TS/effect.git",
+    "url": "https://github.com/clayroach/effect.git",
     "directory": "packages/effect"
   },
   "bugs": {
-    "url": "https://github.com/Effect-TS/effect/issues"
+    "url": "https://github.com/clayroach/effect/issues"
   },
   "tags": [
     "typescript",
