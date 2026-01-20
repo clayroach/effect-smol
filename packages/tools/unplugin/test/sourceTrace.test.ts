@@ -254,7 +254,7 @@ const program = Effect.gen(function* () {
   })
 
   describe("span instrumentation", () => {
-    it("wraps Effect.gen with withSpan when enabled", () => {
+    it("wraps Effect.gen with withSpan using function name (default)", () => {
       const code = `
 import { Effect } from "effect"
 
@@ -268,10 +268,11 @@ const getUser = Effect.gen(function* () {
       })
       expect(result.transformed).toBe(true)
       expect(result.code).toContain("Effect.withSpan")
-      expect(result.code).toContain('"getUser (UserRepo.ts:4)"')
+      expect(result.code).toContain('"effect.gen (getUser)"')
+      expect(result.code).toContain('"code.function": "getUser"')
     })
 
-    it("wraps Effect.fork with withSpan when enabled", () => {
+    it("wraps Effect.fork with withSpan using function name (default)", () => {
       const code = `
 import { Effect } from "effect"
 
@@ -283,10 +284,11 @@ const backgroundTask = Effect.fork(Effect.succeed(42))
       })
       expect(result.transformed).toBe(true)
       expect(result.code).toContain("Effect.withSpan")
-      expect(result.code).toContain('"backgroundTask (app.ts:4)"')
+      expect(result.code).toContain('"effect.fork (backgroundTask)"')
+      expect(result.code).toContain('"code.function": "backgroundTask"')
     })
 
-    it("wraps Effect.all with withSpan when enabled", () => {
+    it("wraps Effect.all with withSpan using function name (default)", () => {
       const code = `
 import { Effect } from "effect"
 
@@ -298,10 +300,11 @@ const combined = Effect.all([Effect.succeed(1), Effect.succeed(2)])
       })
       expect(result.transformed).toBe(true)
       expect(result.code).toContain("Effect.withSpan")
-      expect(result.code).toContain('"combined (app.ts:4)"')
+      expect(result.code).toContain('"effect.all (combined)"')
+      expect(result.code).toContain('"code.function": "combined"')
     })
 
-    it("wraps Effect.forEach with withSpan when enabled", () => {
+    it("wraps Effect.forEach with withSpan using function name (default)", () => {
       const code = `
 import { Effect } from "effect"
 
@@ -313,10 +316,11 @@ const results = Effect.forEach([1, 2, 3], (n) => Effect.succeed(n * 2))
       })
       expect(result.transformed).toBe(true)
       expect(result.code).toContain("Effect.withSpan")
-      expect(result.code).toContain('"results (app.ts:4)"')
+      expect(result.code).toContain('"effect.forEach (results)"')
+      expect(result.code).toContain('"code.function": "results"')
     })
 
-    it("uses file:line when no variable name", () => {
+    it("uses just combinator when no variable name (function format)", () => {
       const code = `
 import { Effect } from "effect"
 
@@ -330,7 +334,44 @@ export default Effect.gen(function* () {
       })
       expect(result.transformed).toBe(true)
       expect(result.code).toContain("Effect.withSpan")
-      expect(result.code).toContain('"handler.ts:4"')
+      expect(result.code).toContain('"effect.gen"')
+      expect(result.code).toContain('"code.filepath": "/src/handler.ts"')
+      expect(result.code).toContain('"code.lineno": 4')
+      expect(result.code).toContain('"code.function": "effect.gen"')
+    })
+
+    it("uses location format when nameFormat is location", () => {
+      const code = `
+import { Effect } from "effect"
+
+const getUser = Effect.gen(function* () {
+  yield* Effect.succeed(42)
+})
+`
+      const result = transform(code, "/src/app.ts", {
+        sourceTrace: false,
+        spans: { enabled: true, nameFormat: "location" }
+      })
+      expect(result.transformed).toBe(true)
+      expect(result.code).toContain('"effect.gen (app.ts:4)"')
+      expect(result.code).toContain('"code.function": "getUser"')
+    })
+
+    it("uses full format when nameFormat is full", () => {
+      const code = `
+import { Effect } from "effect"
+
+const getUser = Effect.gen(function* () {
+  yield* Effect.succeed(42)
+})
+`
+      const result = transform(code, "/src/app.ts", {
+        sourceTrace: false,
+        spans: { enabled: true, nameFormat: "full" }
+      })
+      expect(result.transformed).toBe(true)
+      expect(result.code).toContain('"effect.gen (getUser @ app.ts:4)"')
+      expect(result.code).toContain('"code.function": "getUser"')
     })
 
     it("respects include option", () => {
@@ -345,9 +386,9 @@ const b = Effect.fork(Effect.succeed(2))
         spans: { enabled: true, include: ["gen"] }
       })
       expect(result.transformed).toBe(true)
-      expect(result.code).toContain('"a (app.ts:4)"')
+      expect(result.code).toContain('"effect.gen (a)"')
       // fork should not be wrapped
-      expect(result.code).not.toContain('"b (app.ts:5)"')
+      expect(result.code).not.toContain('"effect.fork')
     })
 
     it("respects exclude option", () => {
@@ -362,9 +403,9 @@ const b = Effect.fork(Effect.succeed(2))
         spans: { enabled: true, exclude: ["fork"] }
       })
       expect(result.transformed).toBe(true)
-      expect(result.code).toContain('"a (app.ts:4)"')
+      expect(result.code).toContain('"effect.gen (a)"')
       // fork should not be wrapped
-      expect(result.code).not.toContain('"b (app.ts:5)"')
+      expect(result.code).not.toContain('"effect.fork')
     })
 
     it("does not transform when spans not enabled", () => {
