@@ -25,6 +25,7 @@
     { "path": "packages/tools/ai-codegen" },
     { "path": "packages/tools/openapi-generator" },
     { "path": "packages/tools/oxc" },
+    { "path": "packages/tools/unplugin" },
     { "path": "packages/tools/utils" },
     { "path": "packages/vitest" }
   ]

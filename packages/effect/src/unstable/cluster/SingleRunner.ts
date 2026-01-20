@@ -1,7 +1,7 @@
 /**
  * @since 4.0.0
  */
-import * as Layer from "effect/Layer"
+import * as Layer from "../../Layer.ts"
 import type { ConfigError } from "../../Config.ts"
 import type * as SqlClient from "../sql/SqlClient.ts"
 import type * as MessageStorage from "./MessageStorage.ts"

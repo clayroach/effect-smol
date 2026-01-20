@@ -679,6 +679,9 @@ export class FiberImpl<A = any, E = any> implements Fiber.Fiber<A, E> {
     return pipeArguments(this, arguments)
   }
   setServices(services: ServiceMap.ServiceMap<never>): void {
+    if (!services) {
+      return
+    }
     this.services = services
     this.currentScheduler = this.getRef(Scheduler.Scheduler)
     this.currentSpan = services.mapUnsafe.get(Tracer.ParentSpanKey)
@@ -4760,6 +4763,9 @@ export const noopSpan = (options: {
 
 const filterDisablePropagation = (span: Tracer.AnySpan | undefined): Tracer.AnySpan | undefined => {
   if (span) {
+    if (!span.services?.mapUnsafe) {
+      return span
+    }
     return ServiceMap.get(span.services, Tracer.DisablePropagation)
       ? span._tag === "Span" ? filterDisablePropagation(span.parent) : undefined
       : span
@@ -5564,7 +5570,10 @@ export const defaultLogger = loggerMake<unknown, void>(({ cause, date, fiber, lo
   }
   const console = fiber.getRef(ConsoleRef)
   const log = fiber.getRef(LogToStderr) ? console.error : console.log
-  log(`[${defaultDateFormat(date)}] ${logLevel.toUpperCase()} (#${fiber.id})${spanString}:`, ...message_)
+  const stackFrame = fiber.currentStackFrame
+  const location = stackFrame?.stack?.()
+  const locationPrefix = location ? `[${location}] ` : ""
+  log(`${locationPrefix}[${defaultDateFormat(date)}] ${logLevel.toUpperCase()} (#${fiber.id})${spanString}:`, ...message_)
 })
 
 /** @internal */
@@ -5581,6 +5590,11 @@ export const tracerLogger = loggerMake<unknown, void>(({ cause, fiber, logLevel,
   attributes["effect.logLevel"] = logLevel.toUpperCase()
   if (cause.failures.length > 0) {
     attributes["effect.cause"] = causePretty(cause)
+  }
+  const stackFrame = fiber.currentStackFrame
+  const location = stackFrame?.stack?.()
+  if (location) {
+    attributes["code.filepath"] = location
   }
   span.event(
     toStringUnknown(Array.isArray(message) && message.length === 1 ? message[0] : message),
