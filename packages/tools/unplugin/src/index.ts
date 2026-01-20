@@ -1,11 +1,11 @@
 /**
  * Build-time AST transformer for Effect source location tracing and auto-instrumentation.
  *
- * This plugin provides two features:
+ * Provides two features:
  * 1. **Source Tracing**: Transforms `yield*` expressions inside `Effect.gen()` to
  *    inject source location information via `CurrentStackFrame`.
  * 2. **Span Instrumentation**: Wraps Effect combinators with `withSpan()` for
- *    automatic distributed tracing.
+ *    automatic distributed tracing with OpenTelemetry semantic conventions.
  *
  * @example
  * ```ts
@@ -20,7 +20,8 @@
  *     // Enable span instrumentation
  *     spans: {
  *       enabled: true,
- *       include: ["gen", "fork", "all", "forEach"]
+ *       include: ["gen", "fork", "all", "forEach"],
+ *       nameFormat: "function" // "function" | "location" | "full"
  *     }
  *   })]
  * })
@@ -29,11 +30,9 @@
  * @since 0.0.1
  */
 import { createUnplugin, type TransformResult as UnpluginTransformResult } from "unplugin"
-import { annotateEffects } from "./annotateEffects.ts"
 import { transform } from "./sourceTrace.ts"
 import type { FilterPattern, SourceTraceOptions } from "./types.ts"
 
-export { type AnnotateResult, annotateEffects } from "./annotateEffects.ts"
 export { type TransformResult } from "./sourceTrace.ts"
 export type { FilterPattern, InstrumentableEffect, SourceTraceOptions, SpanInstrumentationOptions } from "./types.ts"
 
@@ -86,32 +85,11 @@ export const unplugin = createUnplugin<SourceTraceOptions | undefined>((options 
     },
 
     transform(code, id) {
-      let currentCode = code
-      let hasTransformed = false
-      let finalMap: unknown
-
-      // Run source trace and span instrumentation
-      const traceResult = transform(currentCode, id, options)
-      if (traceResult.transformed) {
-        currentCode = traceResult.code
-        finalMap = traceResult.map
-        hasTransformed = true
-      }
-
-      // Run annotateEffects if enabled
-      if (options.annotateEffects) {
-        const annotateResult = annotateEffects(currentCode, id)
-        if (annotateResult.transformed) {
-          currentCode = annotateResult.code
-          finalMap = annotateResult.map
-          hasTransformed = true
-        }
-      }
-
-      if (!hasTransformed) {
+      const result = transform(code, id, options)
+      if (!result.transformed) {
         return null
       }
-      return { code: currentCode, map: finalMap } as UnpluginTransformResult
+      return { code: result.code, map: result.map } as UnpluginTransformResult
     }
   }
 })

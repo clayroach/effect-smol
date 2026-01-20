@@ -42,10 +42,6 @@
       "types": "./dist/sourceTrace.d.ts",
       "default": "./dist/sourceTrace.js"
     },
-    "./annotateEffects": {
-      "types": "./dist/annotateEffects.d.ts",
-      "default": "./dist/annotateEffects.js"
-    },
     "./vite": {
       "types": "./dist/vite.d.ts",
       "default": "./dist/vite.js"
@@ -75,7 +71,6 @@
       "./package.json": "./package.json",
       ".": "./dist/index.js",
       "./sourceTrace": "./dist/sourceTrace.js",
-      "./annotateEffects": "./dist/annotateEffects.js",
       "./vite": "./dist/vite.js",
       "./rollup": "./dist/rollup.js",
       "./webpack": "./dist/webpack.js",
