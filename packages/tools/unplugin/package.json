@@ -1,7 +1,7 @@
 {
   "name": "@clayroach/effect-unplugin",
   "type": "module",
-  "version": "4.0.0-source-tracing.0",
+  "version": "4.0.0-source-tracing.1",
   "license": "MIT",
   "description": "Build-time AST transformer for Effect source location tracing",
   "homepage": "https://github.com/clayroach/effect",
@@ -34,13 +34,13 @@
   "sideEffects": [],
   "exports": {
     "./package.json": "./package.json",
-    ".": "./src/index.ts",
-    "./sourceTrace": "./src/sourceTrace.ts",
-    "./annotateEffects": "./src/annotateEffects.ts",
-    "./vite": "./src/vite.ts",
-    "./rollup": "./src/rollup.ts",
-    "./webpack": "./src/webpack.ts",
-    "./esbuild": "./src/esbuild.ts"
+    ".": "./dist/index.js",
+    "./sourceTrace": "./dist/sourceTrace.js",
+    "./annotateEffects": "./dist/annotateEffects.js",
+    "./vite": "./dist/vite.js",
+    "./rollup": "./dist/rollup.js",
+    "./webpack": "./dist/webpack.js",
+    "./esbuild": "./dist/esbuild.js"
   },
   "files": [
     "src/**/*.ts",
@@ -70,7 +70,7 @@
     "coverage": "vitest --coverage"
   },
   "peerDependencies": {
-    "@clayroach/effect": "4.0.0-source-tracing.0"
+    "@clayroach/effect": "4.0.0-source-tracing.1"
   },
   "dependencies": {
     "@babel/generator": "^7.27.5",
