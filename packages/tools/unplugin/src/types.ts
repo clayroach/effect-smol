@@ -79,4 +79,9 @@ export interface SourceTraceOptions {
    * Auto-instrumentation options for wrapping Effect combinators with withSpan.
    */
   readonly spans?: SpanInstrumentationOptions | undefined
+  /**
+   * Add @__PURE__  annotations to Effect calls for tree-shaking.
+   * @default false
+   */
+  readonly annotateEffects?: boolean | undefined
 }

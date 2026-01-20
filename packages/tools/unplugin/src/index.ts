@@ -28,10 +28,12 @@
  *
  * @since 0.0.1
  */
-import { createUnplugin } from "unplugin"
+import { createUnplugin, type TransformResult as UnpluginTransformResult } from "unplugin"
+import { annotateEffects } from "./annotateEffects.ts"
 import { transform } from "./sourceTrace.ts"
 import type { FilterPattern, SourceTraceOptions } from "./types.ts"
 
+export { type AnnotateResult, annotateEffects } from "./annotateEffects.ts"
 export { type TransformResult } from "./sourceTrace.ts"
 export type { FilterPattern, InstrumentableEffect, SourceTraceOptions, SpanInstrumentationOptions } from "./types.ts"
 
@@ -84,12 +86,32 @@ export const unplugin = createUnplugin<SourceTraceOptions | undefined>((options 
     },
 
     transform(code, id) {
-      const result = transform(code, id, options)
-      if (!result.transformed) {
+      let currentCode = code
+      let hasTransformed = false
+      let finalMap: unknown
+
+      // Run source trace and span instrumentation
+      const traceResult = transform(currentCode, id, options)
+      if (traceResult.transformed) {
+        currentCode = traceResult.code
+        finalMap = traceResult.map
+        hasTransformed = true
+      }
+
+      // Run annotateEffects if enabled
+      if (options.annotateEffects) {
+        const annotateResult = annotateEffects(currentCode, id)
+        if (annotateResult.transformed) {
+          currentCode = annotateResult.code
+          finalMap = annotateResult.map
+          hasTransformed = true
+        }
+      }
+
+      if (!hasTransformed) {
         return null
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return { code: result.code, map: result.map } as any
+      return { code: currentCode, map: finalMap } as UnpluginTransformResult
     }
   }
 })
