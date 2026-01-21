@@ -1,0 +1,89 @@
+{
+  "name": "@effect/unplugin",
+  "type": "module",
+  "version": "4.0.0-effect4-transformer.1",
+  "license": "MIT",
+  "description": "Build-time AST transformer for Effect source location tracing",
+  "homepage": "https://github.com/clayroach/effect",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/clayroach/effect.git",
+    "directory": "packages/tools/unplugin"
+  },
+  "bugs": {
+    "url": "https://github.com/clayroach/effect/issues"
+  },
+  "tags": [
+    "typescript",
+    "effect",
+    "unplugin",
+    "vite",
+    "webpack",
+    "rollup",
+    "esbuild"
+  ],
+  "keywords": [
+    "typescript",
+    "effect",
+    "unplugin",
+    "vite",
+    "webpack",
+    "rollup",
+    "esbuild"
+  ],
+  "sideEffects": [],
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./sourceTrace": {
+      "types": "./dist/sourceTrace.d.ts",
+      "default": "./dist/sourceTrace.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "default": "./dist/vite.js"
+    },
+    "./rollup": {
+      "types": "./dist/rollup.d.ts",
+      "default": "./dist/rollup.js"
+    },
+    "./webpack": {
+      "types": "./dist/webpack.d.ts",
+      "default": "./dist/webpack.js"
+    },
+    "./esbuild": {
+      "types": "./dist/esbuild.d.ts",
+      "default": "./dist/esbuild.js"
+    }
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.js.map",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "check": "tsc -b tsconfig.json",
+    "test": "vitest",
+    "coverage": "vitest --coverage"
+  },
+  "peerDependencies": {
+    "effect": "workspace:^"
+  },
+  "dependencies": {
+    "@babel/generator": "^7.27.5",
+    "@babel/parser": "^7.27.5",
+    "@babel/traverse": "^7.27.4",
+    "@babel/types": "^7.27.6",
+    "unplugin": "^2.3.4"
+  },
+  "devDependencies": {
+    "@types/babel__generator": "^7.27.0",
+    "@types/babel__traverse": "^7.20.7"
+  }
+}
