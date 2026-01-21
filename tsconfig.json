@@ -79,6 +79,8 @@
       "@effect/openapi-generator/*": ["./packages/tools/openapi-generator/src/*.ts"],
       "@effect/oxc": ["./packages/tools/oxc/src/index.ts"],
       "@effect/oxc/*": ["./packages/tools/oxc/src/*.ts"],
+      "@effect/unplugin": ["./packages/tools/unplugin/src/index.ts"],
+      "@effect/unplugin/*": ["./packages/tools/unplugin/src/*.ts"],
       "@effect/tools-utils": ["./packages/tools/utils/src/index.ts"],
       "@effect/tools-utils/*": ["./packages/tools/utils/src/*.ts"],
       "@effect/vitest": ["./packages/vitest/src/index.ts"],

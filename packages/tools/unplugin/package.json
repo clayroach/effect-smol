@@ -1,5 +1,5 @@
 {
-  "name": "@clayroach/effect-unplugin",
+  "name": "@effect/unplugin",
   "type": "module",
   "version": "4.0.0-effect4-transformer.1",
   "license": "MIT",
@@ -73,7 +73,7 @@
     "coverage": "vitest --coverage"
   },
   "peerDependencies": {
-    "@clayroach/effect": "4.0.0-source-tracing.5"
+    "effect": "workspace:^"
   },
   "dependencies": {
     "@babel/generator": "^7.27.5",

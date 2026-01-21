@@ -1,4 +1,4 @@
-import { transform } from "../src/sourceTrace.ts"
+import { transform } from "@effect/unplugin/sourceTrace"
 import { describe, expect, it } from "vitest"
 
 describe("sourceTrace", () => {

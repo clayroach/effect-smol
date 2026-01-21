@@ -627,6 +627,9 @@ importers:
       '@babel/types':
         specifier: ^7.27.6
         version: 7.28.6
+      effect:
+        specifier: workspace:^
+        version: link:../../effect
       unplugin:
         specifier: ^2.3.4
         version: 2.3.11
@@ -637,9 +640,6 @@ importers:
       '@types/babel__traverse':
         specifier: ^7.20.7
         version: 7.28.0
-      effect:
-        specifier: workspace:^
-        version: link:../../effect
 
   packages/tools/utils:
     dependencies:

@@ -1,5 +1,5 @@
 {
-  "name": "@clayroach/effect",
+  "name": "effect",
   "type": "module",
   "version": "4.0.0-source-tracing.5",
   "license": "MIT",
