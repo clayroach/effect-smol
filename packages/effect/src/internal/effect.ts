@@ -4271,8 +4271,6 @@ export const forkChild: {
     readonly uninterruptible?: boolean | "inherit"
   }
 ): Effect.Effect<Fiber.Fiber<A, E>, never, R> => {
-  // Capture raw stack immediately while user code is still on the stack.
-  // Performance: ~0.0001ms (100 nanoseconds) - very cheap, just creates Error object
   const rawStack = captureRawStack()
   return withFiber((fiber) => {
     interruptChildrenPatch()
@@ -4297,11 +4295,7 @@ export const forkUnsafe = <FA, FE, A, E, R>(
   rawStack?: string
 ): Fiber.Fiber<A, E> => {
   const interruptible = uninterruptible === "inherit" ? parent.interruptible : !uninterruptible
-  // Start with parent services but we may need to modify for source location
   let childServices = parent.services
-  // If source capture is enabled and we have a raw stack, parse and set location.
-  // Performance: parseSourceLocation is ~0.02ms on first call, near-zero on cache hit
-  // (~95% expected cache hit rate). Only runs when CaptureSourceLocation is enabled.
   if (rawStack && (parent as FiberImpl).getRef(CaptureSourceLocation)) {
     const location = parseSourceLocation(rawStack, 4)
     if (location) {
@@ -4343,8 +4337,6 @@ export const forkDetach: {
     readonly uninterruptible?: boolean | "inherit" | undefined
   }
 ): Effect.Effect<Fiber.Fiber<A, E>, never, R> => {
-  // Capture raw stack immediately while user code is still on the stack.
-  // Performance: ~0.0001ms (100 nanoseconds) - very cheap, just creates Error object
   const rawStack = captureRawStack()
   return withFiber((fiber) => succeed(forkUnsafe(fiber, self, options?.startImmediately, true, options?.uninterruptible, rawStack)))
 })
@@ -4378,8 +4370,6 @@ export const forkIn: {
       readonly uninterruptible?: boolean | "inherit" | undefined
     }
   ): Effect.Effect<Fiber.Fiber<A, E>, never, R> => {
-    // Capture raw stack immediately while user code is still on the stack.
-    // Performance: ~0.0001ms (100 nanoseconds) - very cheap, just creates Error object
     const rawStack = captureRawStack()
     return withFiber((parent) => {
       const fiber = forkUnsafe(parent, self, options?.startImmediately, true, options?.uninterruptible, rawStack)
