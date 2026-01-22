@@ -89,6 +89,7 @@ import * as Metric from "./Metric.ts"
 import type { Option } from "./Option.ts"
 import type { Pipeable } from "./Pipeable.ts"
 import type * as Predicate from "./Predicate.ts"
+import type * as References from "./References.ts"
 import { CurrentLogAnnotations, CurrentLogSpans } from "./References.ts"
 import type * as Request from "./Request.ts"
 import type { RequestResolver } from "./RequestResolver.ts"
@@ -6982,6 +6983,62 @@ export const withTracerTiming: {
   (enabled: boolean): <A, E, R>(effect: Effect<A, E, R>) => Effect<A, E, R>
   <A, E, R>(effect: Effect<A, E, R>, enabled: boolean): Effect<A, E, R>
 } = internal.withTracerTiming
+
+/**
+ * Enables or disables source location capture for fork operations within the
+ * given Effect. When enabled, Effect.forkChild() and similar operations will capture
+ * the call site (file, line, column) and store it in the forked fiber.
+ *
+ * This is useful for observability and tracing to identify where fibers were
+ * created, enabling meaningful span names like "sendEmail (user-handlers.ts:42)"
+ * instead of "anonymous".
+ *
+ * @example
+ * ```ts
+ * import { Effect, Fiber } from "effect"
+ *
+ * const program = Effect.gen(function*() {
+ *   // Fork with source capture enabled
+ *   const fiber = yield* Effect.forkChild(Effect.succeed(42))
+ *   // The fiber now has its source location captured
+ *   const location = yield* Effect.sourceLocation
+ *   if (location) {
+ *     console.log(`Fiber created at ${location.file}:${location.line}`)
+ *   }
+ *   return yield* Fiber.join(fiber)
+ * }).pipe(Effect.withSourceCapture(true))
+ * ```
+ *
+ * @since 4.0.0
+ * @category Tracing
+ */
+export const withSourceCapture: {
+  (enabled: boolean): <A, E, R>(effect: Effect<A, E, R>) => Effect<A, E, R>
+  <A, E, R>(effect: Effect<A, E, R>, enabled: boolean): Effect<A, E, R>
+} = internal.withSourceCapture
+
+/**
+ * Retrieves the source location where the current fiber was forked.
+ * Returns `undefined` if source capture was not enabled when the fiber was created.
+ *
+ * @example
+ * ```ts
+ * import { Effect } from "effect"
+ *
+ * const program = Effect.gen(function*() {
+ *   const location = yield* Effect.sourceLocation
+ *   if (location) {
+ *     console.log(`This fiber was created at ${location.file}:${location.line}`)
+ *   } else {
+ *     console.log("Source capture was not enabled")
+ *   }
+ * })
+ * ```
+ *
+ * @since 4.0.0
+ * @category Tracing
+ */
+export const sourceLocation: Effect<References.SourceLocation | undefined> = internal.sourceLocation
 
 /**
  * Adds an annotation to each span in this effect.
