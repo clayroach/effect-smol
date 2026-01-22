@@ -10,7 +10,7 @@
  *
  * @since 4.0.0
  */
-import { constTrue, constUndefined } from "./Function.ts"
+import { constFalse, constTrue, constUndefined } from "./Function.ts"
 import type { LogLevel } from "./LogLevel.ts"
 import type { ReadonlyRecord } from "./Record.ts"
 import { MaxOpsBeforeYield } from "./Scheduler.ts"
@@ -572,3 +572,79 @@ export const CurrentLogSpans = ServiceMap.Reference<
 export const MinimumLogLevel = ServiceMap.Reference<
   LogLevel
 >("effect/References/MinimumLogLevel", { defaultValue: () => "Info" })
+
+// ----------------------------------------------------------------------------
+// Source Location Capture
+// ----------------------------------------------------------------------------
+
+/**
+ * Represents a source code location captured from a stack trace.
+ * Used to identify where Effect.fork() was invoked for better observability.
+ *
+ * @since 4.0.0
+ * @category source capture
+ */
+export interface SourceLocation {
+  readonly file: string
+  readonly line: number
+  readonly column: number
+  readonly functionName?: string
+}
+
+/**
+ * Reference for controlling whether source location capture is enabled for fork operations.
+ * When enabled, Effect.fork() and similar operations will capture the call site
+ * (file, line, column) and store it in CurrentSourceLocation.
+ *
+ * This is opt-in and disabled by default to ensure zero performance overhead
+ * when not needed.
+ *
+ * @example
+ * ```ts
+ * import { Effect, References } from "effect"
+ *
+ * const withSourceCapture = Effect.gen(function*() {
+ *   // Enable source capture for this scope
+ *   yield* Effect.provideService(
+ *     Effect.gen(function*() {
+ *       const fiber = yield* Effect.fork(Effect.succeed(42))
+ *       // fiber now has source location captured
+ *     }),
+ *     References.CaptureSourceLocation,
+ *     true
+ *   )
+ * })
+ * ```
+ *
+ * @since 4.0.0
+ * @category source capture
+ */
+export const CaptureSourceLocation = ServiceMap.Reference<boolean>(
+  "effect/References/CaptureSourceLocation",
+  { defaultValue: constFalse }
+)
+
+/**
+ * Reference holding the captured source location for the current fiber.
+ * This is set automatically when a fiber is created via fork operations
+ * and CaptureSourceLocation is enabled.
+ *
+ * @example
+ * ```ts
+ * import { Effect, References } from "effect"
+ *
+ * const getLocation = Effect.gen(function*() {
+ *   const location = yield* References.CurrentSourceLocation
+ *   if (location) {
+ *     console.log(`Fiber created at ${location.file}:${location.line}`)
+ *   }
+ * })
+ * ```
+ *
+ * @since 4.0.0
+ * @category source capture
+ */
+export const CurrentSourceLocation = ServiceMap.Reference<SourceLocation | undefined>(
+  "effect/References/CurrentSourceLocation",
+  { defaultValue: constUndefined }
+)

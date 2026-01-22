@@ -29,7 +29,7 @@ import type { ErrorWithStackTraceLimit } from "./internal/tracer.ts"
 import * as internalTracer from "./internal/tracer.ts"
 import { type Pipeable, pipeArguments } from "./Pipeable.ts"
 import { hasProperty } from "./Predicate.ts"
-import { CurrentStackFrame } from "./References.ts"
+import { CaptureSourceLocation, CurrentStackFrame } from "./References.ts"
 import * as Scope from "./Scope.ts"
 import * as ServiceMap from "./ServiceMap.ts"
 import * as Tracer from "./Tracer.ts"
@@ -659,6 +659,36 @@ export const succeedServices = <A>(services: ServiceMap.ServiceMap<A>): Layer<A>
  * @category constructors
  */
 export const empty: Layer<never> = succeedServices(ServiceMap.empty())
+
+/**
+ * A layer that enables source location capture for fork operations.
+ *
+ * When this layer is provided, Effect.fork() and similar operations will capture
+ * the call site (file, line, column) and store it in the forked fiber. This
+ * enables meaningful span names in distributed tracing like "sendEmail (user-handlers.ts:42)"
+ * instead of "anonymous".
+ *
+ * @example
+ * ```ts
+ * import { Effect, Layer } from "effect"
+ *
+ * const program = Effect.gen(function*() {
+ *   const fiber = yield* Effect.fork(Effect.succeed(42))
+ *   const location = yield* Effect.sourceLocation
+ *   if (location) {
+ *     console.log(`Fiber created at ${location.file}:${location.line}`)
+ *   }
+ *   return yield* Effect.join(fiber)
+ * })
+ *
+ * // Enable source capture for entire program
+ * Effect.runPromise(Effect.provide(program, Layer.enableSourceCapture))
+ * ```
+ *
+ * @since 4.0.0
+ * @category tracing
+ */
+export const enableSourceCapture: Layer<never> = succeedServices(ServiceMap.make(CaptureSourceLocation, true))
 
 /**
  * Lazily constructs a layer from the specified value.
