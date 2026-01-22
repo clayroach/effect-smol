@@ -593,7 +593,7 @@ export interface SourceLocation {
 
 /**
  * Reference for controlling whether source location capture is enabled for fork operations.
- * When enabled, Effect.fork() and similar operations will capture the call site
+ * When enabled, Effect.forkChild() and similar operations will capture the call site
  * (file, line, column) and store it in CurrentSourceLocation.
  *
  * This is opt-in and disabled by default to ensure zero performance overhead
@@ -607,7 +607,7 @@ export interface SourceLocation {
  *   // Enable source capture for this scope
  *   yield* Effect.provideService(
  *     Effect.gen(function*() {
- *       const fiber = yield* Effect.fork(Effect.succeed(42))
+ *       const fiber = yield* Effect.forkChild(Effect.succeed(42))
  *       // fiber now has source location captured
  *     }),
  *     References.CaptureSourceLocation,

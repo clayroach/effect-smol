@@ -6952,7 +6952,7 @@ export const withTracerTiming: {
 
 /**
  * Enables or disables source location capture for fork operations within the
- * given Effect. When enabled, Effect.fork() and similar operations will capture
+ * given Effect. When enabled, Effect.forkChild() and similar operations will capture
  * the call site (file, line, column) and store it in the forked fiber.
  *
  * This is useful for observability and tracing to identify where fibers were
@@ -6961,17 +6961,17 @@ export const withTracerTiming: {
  *
  * @example
  * ```ts
- * import { Effect } from "effect"
+ * import { Effect, Fiber } from "effect"
  *
  * const program = Effect.gen(function*() {
  *   // Fork with source capture enabled
- *   const fiber = yield* Effect.fork(Effect.succeed(42))
+ *   const fiber = yield* Effect.forkChild(Effect.succeed(42))
  *   // The fiber now has its source location captured
  *   const location = yield* Effect.sourceLocation
  *   if (location) {
  *     console.log(`Fiber created at ${location.file}:${location.line}`)
  *   }
- *   return yield* Effect.join(fiber)
+ *   return yield* Fiber.join(fiber)
  * }).pipe(Effect.withSourceCapture(true))
  * ```
  *

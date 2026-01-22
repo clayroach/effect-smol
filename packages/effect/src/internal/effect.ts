@@ -31,6 +31,7 @@ import {
   CurrentSourceLocation,
   CurrentStackFrame,
   MinimumLogLevel,
+  type SourceLocation,
   type StackFrame,
   TracerEnabled,
   TracerSpanAnnotations,
@@ -4768,7 +4769,7 @@ export const withSourceCapture: {
 } = provideService(CaptureSourceLocation)
 
 /** @internal */
-export const sourceLocation: Effect.Effect<import("../References.ts").SourceLocation | undefined> =
+export const sourceLocation: Effect.Effect<SourceLocation | undefined> =
   withFiber((fiber) => succeed(fiber.getRef(CurrentSourceLocation)))
 
 const bigint0 = BigInt(0)

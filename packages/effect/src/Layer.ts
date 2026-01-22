@@ -663,22 +663,22 @@ export const empty: Layer<never> = succeedServices(ServiceMap.empty())
 /**
  * A layer that enables source location capture for fork operations.
  *
- * When this layer is provided, Effect.fork() and similar operations will capture
+ * When this layer is provided, Effect.forkChild() and similar operations will capture
  * the call site (file, line, column) and store it in the forked fiber. This
  * enables meaningful span names in distributed tracing like "sendEmail (user-handlers.ts:42)"
  * instead of "anonymous".
  *
  * @example
  * ```ts
- * import { Effect, Layer } from "effect"
+ * import { Effect, Fiber, Layer } from "effect"
  *
  * const program = Effect.gen(function*() {
- *   const fiber = yield* Effect.fork(Effect.succeed(42))
+ *   const fiber = yield* Effect.forkChild(Effect.succeed(42))
  *   const location = yield* Effect.sourceLocation
  *   if (location) {
  *     console.log(`Fiber created at ${location.file}:${location.line}`)
  *   }
- *   return yield* Effect.join(fiber)
+ *   return yield* Fiber.join(fiber)
  * })
  *
  * // Enable source capture for entire program
