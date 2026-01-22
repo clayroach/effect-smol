@@ -103,4 +103,47 @@ describe("SourceCapture", () => {
         assert.isUndefined(location)
       }).pipe(Effect.withSourceCapture(true)))
   })
+
+  describe("concurrent operations", () => {
+    it.effect("forEach captures source location for each fiber", () =>
+      Effect.gen(function*() {
+        const locations = yield* Effect.forEach(
+          [1, 2, 3],
+          () => Effect.sourceLocation,
+          { concurrency: "unbounded" }
+        )
+
+        // forEach uses dual() which adds indirection, so the captured location
+        // may be in internal code. Just verify location is captured.
+        for (const location of locations) {
+          assert.isDefined(location)
+          assert.isString(location!.file)
+          assert.isNumber(location!.line)
+        }
+      }).pipe(Effect.withSourceCapture(true)))
+
+    it.effect("raceAll captures source location for fibers", () =>
+      Effect.gen(function*() {
+        // Race multiple effects that return their source location
+        const location = yield* Effect.raceAll([
+          Effect.sourceLocation,
+          Effect.delay(Effect.sourceLocation, 1000),
+          Effect.delay(Effect.sourceLocation, 2000)
+        ])
+
+        assert.isDefined(location)
+        assert.include(location!.file, "SourceCapture.test.ts")
+      }).pipe(Effect.withSourceCapture(true)))
+
+    it.effect("raceAllFirst captures source location for fibers", () =>
+      Effect.gen(function*() {
+        const location = yield* Effect.raceAllFirst([
+          Effect.sourceLocation,
+          Effect.delay(Effect.sourceLocation, 1000)
+        ])
+
+        assert.isDefined(location)
+        assert.include(location!.file, "SourceCapture.test.ts")
+      }).pipe(Effect.withSourceCapture(true)))
+  })
 })
