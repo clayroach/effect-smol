@@ -1404,7 +1404,6 @@ export const raceAll = <Eff extends Effect.Effect<any, any, any>>(
   Effect.Error<Eff>,
   Effect.Services<Eff>
 > =>
-  // Performance: captureRawStack ~0.0001ms; parseSourceLocation ~0.02ms (first call), near-zero on cache hit
   withFiberAndStack((parent, rawStack) =>
     callback((resume) => {
       const effects = Arr.fromIterable(all)
@@ -1463,7 +1462,6 @@ export const raceAllFirst = <Eff extends Effect.Effect<any, any, any>>(
   Effect.Error<Eff>,
   Effect.Services<Eff>
 > =>
-  // Performance: captureRawStack ~0.0001ms; parseSourceLocation ~0.02ms (first call), near-zero on cache hit
   withFiberAndStack((parent, rawStack) =>
     callback((resume) => {
       let done = false
@@ -3972,7 +3970,6 @@ export const forEach: {
     readonly discard?: boolean | undefined
   }
 ): Effect.Effect<any, E, R> =>
-  // Performance: captureRawStack ~0.0001ms; parseSourceLocation ~0.02ms (first call), near-zero on cache hit
   withFiberAndStack((parent, rawStack) => {
     const concurrencyOption = options?.concurrency === "inherit"
       ? parent.getRef(CurrentConcurrency)
