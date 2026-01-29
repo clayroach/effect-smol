@@ -3160,15 +3160,6 @@ export type ModifyCertificateRequest = { readonly "name": string }
 export const ModifyCertificateRequest = Schema.Struct({
   "name": Schema.String.annotate({ "description": "The updated name for the certificate" })
 }).annotate({ "identifier": "ModifyCertificateRequest" })
-export type Move = { readonly "type": "move"; readonly "x": number; readonly "y": number }
-export const Move = Schema.Struct({
-  "type": Schema.Literal("move").annotate({
-    "description": "Specifies the event type. For a move action, this property is \nalways set to `move`.\n",
-    "default": "move"
-  }),
-  "x": Schema.Number.annotate({ "description": "The x-coordinate to move to.\n" }).check(Schema.isInt()),
-  "y": Schema.Number.annotate({ "description": "The y-coordinate to move to.\n" }).check(Schema.isInt())
-}).annotate({ "title": "Move", "description": "A mouse move action.\n", "identifier": "Move" })
 export type NoiseReductionType = "near_field" | "far_field"
 export const NoiseReductionType = Schema.Literals(["near_field", "far_field"]).annotate({
   "description":
@@ -6676,31 +6667,6 @@ export const RunStepDetailsToolCallsFunctionObject = Schema.Struct({
     ])
   }).annotate({ "description": "The definition of the function that was called." })
 }).annotate({ "title": "Function tool call", "identifier": "RunStepDetailsToolCallsFunctionObject" })
-export type Screenshot = { readonly "type": "screenshot" }
-export const Screenshot = Schema.Struct({
-  "type": Schema.Literal("screenshot").annotate({
-    "description":
-      "Specifies the event type. For a screenshot action, this property is \nalways set to `screenshot`.\n",
-    "default": "screenshot"
-  })
-}).annotate({ "title": "Screenshot", "description": "A screenshot action.\n", "identifier": "Screenshot" })
-export type Scroll = {
-  readonly "type": "scroll"
-  readonly "x": number
-  readonly "y": number
-  readonly "scroll_x": number
-  readonly "scroll_y": number
-}
-export const Scroll = Schema.Struct({
-  "type": Schema.Literal("scroll").annotate({
-    "description": "Specifies the event type. For a scroll action, this property is \nalways set to `scroll`.\n",
-    "default": "scroll"
-  }),
-  "x": Schema.Number.annotate({ "description": "The x-coordinate where the scroll occurred.\n" }).check(Schema.isInt()),
-  "y": Schema.Number.annotate({ "description": "The y-coordinate where the scroll occurred.\n" }).check(Schema.isInt()),
-  "scroll_x": Schema.Number.annotate({ "description": "The horizontal scroll distance.\n" }).check(Schema.isInt()),
-  "scroll_y": Schema.Number.annotate({ "description": "The vertical scroll distance.\n" }).check(Schema.isInt())
-}).annotate({ "title": "Scroll", "description": "A scroll action.\n", "identifier": "Scroll" })
 export type ServiceTier = "auto" | "default" | "flex" | "scale" | "priority" | null
 export const ServiceTier = Schema.Union([
   Schema.Literals(["auto", "default", "flex", "scale", "priority"]).annotate({
@@ -7102,14 +7068,6 @@ export const TranscriptionWord = Schema.Struct({
     Schema.isFinite()
   )
 }).annotate({ "identifier": "TranscriptionWord" })
-export type Type = { readonly "type": "type"; readonly "text": string }
-export const Type = Schema.Struct({
-  "type": Schema.Literal("type").annotate({
-    "description": "Specifies the event type. For a type action, this property is \nalways set to `type`.\n",
-    "default": "type"
-  }),
-  "text": Schema.String.annotate({ "description": "The text to type.\n" })
-}).annotate({ "title": "Type", "description": "An action to type in text.\n", "identifier": "Type" })
 export type UpdateGroupBody = { readonly "name": string }
 export const UpdateGroupBody = Schema.Struct({
   "name": Schema.String.annotate({ "description": "New display name for the group." }).check(Schema.isMinLength(1))
@@ -7913,13 +7871,6 @@ export const VoiceResource = Schema.Struct({
   "description": "A custom voice that can be used for audio output.",
   "identifier": "VoiceResource"
 })
-export type Wait = { readonly "type": "wait" }
-export const Wait = Schema.Struct({
-  "type": Schema.Literal("wait").annotate({
-    "description": "Specifies the event type. For a wait action, this property is \nalways set to `wait`.\n",
-    "default": "wait"
-  })
-}).annotate({ "title": "Wait", "description": "A wait action.\n", "identifier": "Wait" })
 export type WebSearchActionFind = { readonly "type": "find"; readonly "url": string; readonly "pattern": string }
 export const WebSearchActionFind = Schema.Struct({
   "type": Schema.Literal("find").annotate({ "description": "The action type.\n" }),
@@ -8295,14 +8246,14 @@ export const DoubleClickAction = Schema.Struct({
     Schema.isInt()
   )
 }).annotate({ "title": "DoubleClick", "description": "A double click action.", "identifier": "DoubleClickAction" })
-export type DragPoint = { readonly "x": number; readonly "y": number }
-export const DragPoint = Schema.Struct({
+export type CoordParam = { readonly "x": number; readonly "y": number }
+export const CoordParam = Schema.Struct({
   "x": Schema.Number.annotate({ "description": "The x-coordinate." }).check(Schema.isInt()),
   "y": Schema.Number.annotate({ "description": "The y-coordinate." }).check(Schema.isInt())
 }).annotate({
   "title": "Coordinate",
   "description": "An x/y coordinate pair, e.g. `{ x: 100, y: 200 }`.",
-  "identifier": "DragPoint"
+  "identifier": "CoordParam"
 })
 export type KeyPressAction = { readonly "type": "keypress"; readonly "keys": ReadonlyArray<string> }
 export const KeyPressAction = Schema.Struct({
@@ -8321,6 +8272,54 @@ export const KeyPressAction = Schema.Struct({
   "description": "A collection of keypresses the model would like to perform.",
   "identifier": "KeyPressAction"
 })
+export type MoveParam = { readonly "type": "move"; readonly "x": number; readonly "y": number }
+export const MoveParam = Schema.Struct({
+  "type": Schema.Literal("move").annotate({
+    "description": "Specifies the event type. For a move action, this property is always set to `move`.",
+    "default": "move"
+  }),
+  "x": Schema.Number.annotate({ "description": "The x-coordinate to move to." }).check(Schema.isInt()),
+  "y": Schema.Number.annotate({ "description": "The y-coordinate to move to." }).check(Schema.isInt())
+}).annotate({ "title": "Move", "description": "A mouse move action.", "identifier": "MoveParam" })
+export type ScreenshotParam = { readonly "type": "screenshot" }
+export const ScreenshotParam = Schema.Struct({
+  "type": Schema.Literal("screenshot").annotate({
+    "description": "Specifies the event type. For a screenshot action, this property is always set to `screenshot`.",
+    "default": "screenshot"
+  })
+}).annotate({ "title": "Screenshot", "description": "A screenshot action.", "identifier": "ScreenshotParam" })
+export type ScrollParam = {
+  readonly "type": "scroll"
+  readonly "x": number
+  readonly "y": number
+  readonly "scroll_x": number
+  readonly "scroll_y": number
+}
+export const ScrollParam = Schema.Struct({
+  "type": Schema.Literal("scroll").annotate({
+    "description": "Specifies the event type. For a scroll action, this property is always set to `scroll`.",
+    "default": "scroll"
+  }),
+  "x": Schema.Number.annotate({ "description": "The x-coordinate where the scroll occurred." }).check(Schema.isInt()),
+  "y": Schema.Number.annotate({ "description": "The y-coordinate where the scroll occurred." }).check(Schema.isInt()),
+  "scroll_x": Schema.Number.annotate({ "description": "The horizontal scroll distance." }).check(Schema.isInt()),
+  "scroll_y": Schema.Number.annotate({ "description": "The vertical scroll distance." }).check(Schema.isInt())
+}).annotate({ "title": "Scroll", "description": "A scroll action.", "identifier": "ScrollParam" })
+export type TypeParam = { readonly "type": "type"; readonly "text": string }
+export const TypeParam = Schema.Struct({
+  "type": Schema.Literal("type").annotate({
+    "description": "Specifies the event type. For a type action, this property is always set to `type`.",
+    "default": "type"
+  }),
+  "text": Schema.String.annotate({ "description": "The text to type." })
+}).annotate({ "title": "Type", "description": "An action to type in text.", "identifier": "TypeParam" })
+export type WaitParam = { readonly "type": "wait" }
+export const WaitParam = Schema.Struct({
+  "type": Schema.Literal("wait").annotate({
+    "description": "Specifies the event type. For a wait action, this property is always set to `wait`.",
+    "default": "wait"
+  })
+}).annotate({ "title": "Wait", "description": "A wait action.", "identifier": "WaitParam" })
 export type ComputerCallSafetyCheckParam = {
   readonly "id": string
   readonly "code"?: string | null
@@ -8971,33 +8970,6 @@ export const ComputerUsePreviewTool = Schema.Struct({
   "description":
     "A tool that controls a virtual computer. Learn more about the [computer tool](https://platform.openai.com/docs/guides/tools-computer-use).",
   "identifier": "ComputerUsePreviewTool"
-})
-export type AutoCodeInterpreterToolParam = {
-  readonly "type": "auto"
-  readonly "file_ids"?: ReadonlyArray<string>
-  readonly "memory_limit"?: "1g" | "4g" | "16g" | "64g" | null
-}
-export const AutoCodeInterpreterToolParam = Schema.Struct({
-  "type": Schema.Literal("auto").annotate({ "description": "Always `auto`.", "default": "auto" }),
-  "file_ids": Schema.optionalKey(
-    Schema.Array(Schema.String.annotate({ "examples": ["file-123"] })).annotate({
-      "description": "An optional list of uploaded files to make available to your code."
-    }).check(Schema.isMaxLength(50))
-  ),
-  "memory_limit": Schema.optionalKey(
-    Schema.Union([
-      Schema.Literals(["1g", "4g", "16g", "64g"]).annotate({
-        "identifier": "ContainerMemoryLimit",
-        "description": "The memory limit for the code interpreter container."
-      }),
-      Schema.Null
-    ])
-  )
-}).annotate({
-  "title": "CodeInterpreterToolAuto",
-  "description":
-    "Configuration for a code interpreter container. Optionally specify the IDs of the files to run the code on.",
-  "identifier": "AutoCodeInterpreterToolParam"
 })
 export type InputFidelity = "high" | "low"
 export const InputFidelity = Schema.Literals(["high", "low"]).annotate({
@@ -10011,6 +9983,32 @@ export const DeletedThreadResource = Schema.Struct({
   "description": "Confirmation payload returned after deleting a thread.",
   "identifier": "DeletedThreadResource"
 })
+export type ModerationImageURLInput = {
+  readonly "type": "image_url"
+  readonly "image_url": { readonly "url"?: string }
+}
+export const ModerationImageURLInput = Schema.Struct({
+  "type": Schema.Literal("image_url"),
+  "image_url": Schema.Struct({ "url": Schema.optionalKey(Schema.String.annotate({ "format": "uri" })) })
+}).annotate({ "identifier": "ModerationImageURLInput" })
+export type ModerationTextInput = { readonly "type": "text"; readonly "text": string }
+export const ModerationTextInput = Schema.Struct({ "type": Schema.Literal("text"), "text": Schema.String }).annotate({
+  "identifier": "ModerationTextInput"
+})
+export type ComparisonFilterValueItems = string | number | boolean
+export const ComparisonFilterValueItems = Schema.Union([
+  Schema.String,
+  Schema.Number.check(Schema.isFinite()),
+  Schema.Boolean
+], { mode: "oneOf" }).annotate({
+  "description": "Items in a comparison filter value array",
+  "identifier": "ComparisonFilterValueItems"
+})
+export type FilePurpose = "assistants" | "batch" | "fine-tune" | "vision"
+export const FilePurpose = Schema.Literals(["assistants", "batch", "fine-tune", "vision"]).annotate({
+  "description": "The intended purpose of the file.",
+  "identifier": "FilePurpose"
+})
 export type BatchError = {
   readonly "code"?: string
   readonly "message"?: string
@@ -10039,32 +10037,6 @@ export const BatchRequestCounts = Schema.Struct({
 }).annotate({ "identifier": "BatchRequestCounts" })
 export type ChatModel = string
 export const ChatModel = Schema.String.annotate({ "description": "A chat model identifier", "identifier": "ChatModel" })
-export type ComparisonFilterValueItems = string | number | boolean
-export const ComparisonFilterValueItems = Schema.Union([
-  Schema.String,
-  Schema.Number.check(Schema.isFinite()),
-  Schema.Boolean
-], { mode: "oneOf" }).annotate({
-  "description": "Items in a comparison filter value array",
-  "identifier": "ComparisonFilterValueItems"
-})
-export type FilePurpose = "assistants" | "batch" | "fine-tune" | "vision"
-export const FilePurpose = Schema.Literals(["assistants", "batch", "fine-tune", "vision"]).annotate({
-  "description": "The intended purpose of the file.",
-  "identifier": "FilePurpose"
-})
-export type ModerationImageURLInput = {
-  readonly "type": "image_url"
-  readonly "image_url": { readonly "url"?: string }
-}
-export const ModerationImageURLInput = Schema.Struct({
-  "type": Schema.Literal("image_url"),
-  "image_url": Schema.Struct({ "url": Schema.optionalKey(Schema.String.annotate({ "format": "uri" })) })
-}).annotate({ "identifier": "ModerationImageURLInput" })
-export type ModerationTextInput = { readonly "type": "text"; readonly "text": string }
-export const ModerationTextInput = Schema.Struct({ "type": Schema.Literal("text"), "text": Schema.String }).annotate({
-  "identifier": "ModerationTextInput"
-})
 export type RunStatus =
   | "queued"
   | "in_progress"
@@ -10086,6 +10058,8 @@ export const RunStatus = Schema.Literals([
   "incomplete",
   "expired"
 ]).annotate({ "description": "The status of the run.", "identifier": "RunStatus" })
+export type CodeInterpreterContainerAuto = AutoCodeInterpreterToolParam
+export const CodeInterpreterContainerAuto = AutoCodeInterpreterToolParam
 export type ApiKeyList = {
   readonly "object"?: string
   readonly "data"?: ReadonlyArray<AdminApiKey>
@@ -12577,17 +12551,20 @@ export const UserRoleAssignment = Schema.Struct({
   "user": User,
   "role": Role
 }).annotate({ "description": "Role assignment linking a user to a role.", "identifier": "UserRoleAssignment" })
-export type TranscriptionChunkingStrategy = "auto" | VadConfig
+export type TranscriptionChunkingStrategy = "auto" | VadConfig | null
 export const TranscriptionChunkingStrategy = Schema.Union([
-  Schema.Literal("auto").annotate({
-    "description": "Automatically set chunking parameters based on the audio. Must be set to `\"auto\"`.\n"
+  Schema.Union([
+    Schema.Literal("auto").annotate({
+      "description": "Automatically set chunking parameters based on the audio. Must be set to `\"auto\"`.\n",
+      "default": "auto"
+    }),
+    VadConfig
+  ]).annotate({
+    "description":
+      "Controls how the audio is cut into chunks. When set to `\"auto\"`, the server first normalizes loudness and then uses voice activity detection (VAD) to choose boundaries. `server_vad` object can be provided to tweak VAD detection parameters manually. If unset, the audio is transcribed as a single block. Required when using `gpt-4o-transcribe-diarize` for inputs longer than 30 seconds. "
   }),
-  VadConfig
-]).annotate({
-  "description":
-    "Controls how the audio is cut into chunks. When set to `\"auto\"`, the\nserver first normalizes loudness and then uses voice activity detection (VAD) to\nchoose boundaries. `server_vad` object can be provided to tweak VAD detection\nparameters manually. If unset, the audio is transcribed as a single block. ",
-  "identifier": "TranscriptionChunkingStrategy"
-})
+  Schema.Null
+]).annotate({ "identifier": "TranscriptionChunkingStrategy" })
 export type VectorStoreObject = {
   readonly "id": string
   readonly "object": "vector_store"
@@ -13079,17 +13056,17 @@ export const ResponsePromptVariables = Schema.Union([
     }),
   Schema.Null
 ]).annotate({ "identifier": "ResponsePromptVariables" })
-export type Drag = { readonly "type": "drag"; readonly "path": ReadonlyArray<DragPoint> }
-export const Drag = Schema.Struct({
+export type DragParam = { readonly "type": "drag"; readonly "path": ReadonlyArray<CoordParam> }
+export const DragParam = Schema.Struct({
   "type": Schema.Literal("drag").annotate({
-    "description": "Specifies the event type. For a drag action, this property is \nalways set to `drag`.\n",
+    "description": "Specifies the event type. For a drag action, this property is always set to `drag`.",
     "default": "drag"
   }),
-  "path": Schema.Array(DragPoint).annotate({
+  "path": Schema.Array(CoordParam).annotate({
     "description":
-      "An array of coordinates representing the path of the drag action. Coordinates will appear as an array\nof objects, eg\n```\n[\n  { x: 100, y: 200 },\n  { x: 200, y: 300 }\n]\n```\n"
+      "An array of coordinates representing the path of the drag action. Coordinates will appear as an array of objects, eg\n```\n[\n  { x: 100, y: 200 },\n  { x: 200, y: 300 }\n]\n```"
   })
-}).annotate({ "title": "Drag", "description": "A drag action.\n", "identifier": "Drag" })
+}).annotate({ "title": "Drag", "description": "A drag action.", "identifier": "DragParam" })
 export type ComputerToolCallOutputResource = {
   readonly "type": "computer_call_output"
   readonly "id": string
@@ -13407,8 +13384,6 @@ export const ApplyPatchToolCallItemParam = Schema.Struct({
   "description": "A tool call representing a request to create, delete, or update files using diff patches.",
   "identifier": "ApplyPatchToolCallItemParam"
 })
-export type CodeInterpreterContainerAuto = AutoCodeInterpreterToolParam
-export const CodeInterpreterContainerAuto = AutoCodeInterpreterToolParam
 export type CreateImageEditRequest = {
   readonly "image": string | ReadonlyArray<string>
   readonly "prompt": string
@@ -13881,6 +13856,87 @@ export const ThreadResource = Schema.Struct({
   }],
   "identifier": "ThreadResource"
 })
+export type CreateModerationRequest = {
+  readonly "input": string | ReadonlyArray<string> | ReadonlyArray<ModerationImageURLInput | ModerationTextInput>
+  readonly "model"?:
+    | string
+    | "omni-moderation-latest"
+    | "omni-moderation-2024-09-26"
+    | "text-moderation-latest"
+    | "text-moderation-stable"
+}
+export const CreateModerationRequest = Schema.Struct({
+  "input": Schema.Union([
+    Schema.String.annotate({
+      "description": "A string of text to classify for moderation.",
+      "default": "",
+      "examples": ["I want to kill them."]
+    }),
+    Schema.Array(Schema.String.annotate({ "default": "", "examples": ["I want to kill them."] })).annotate({
+      "description": "An array of strings to classify for moderation."
+    }),
+    Schema.Array(Schema.Union([ModerationImageURLInput, ModerationTextInput])).annotate({
+      "title": "Moderation Multi Modal Array",
+      "description": "An array of multi-modal inputs to the moderation model."
+    })
+  ]).annotate({
+    "description":
+      "Input (or inputs) to classify. Can be a single string, an array of strings, or\nan array of multi-modal input objects similar to other models.\n"
+  }),
+  "model": Schema.optionalKey(
+    Schema.Union([
+      Schema.String,
+      Schema.Literals([
+        "omni-moderation-latest",
+        "omni-moderation-2024-09-26",
+        "text-moderation-latest",
+        "text-moderation-stable"
+      ])
+    ]).annotate({
+      "description":
+        "The content moderation model you would like to use. Learn more in\n[the moderation guide](https://platform.openai.com/docs/guides/moderation), and learn about\navailable models [here](https://platform.openai.com/docs/models#moderation).\n"
+    })
+  )
+}).annotate({ "identifier": "CreateModerationRequest" })
+export type ComparisonFilter = {
+  readonly "type": "eq" | "ne" | "gt" | "gte" | "lt" | "lte"
+  readonly "key": string
+  readonly "value": string | number | boolean | ReadonlyArray<ComparisonFilterValueItems>
+}
+export const ComparisonFilter = Schema.Struct({
+  "type": Schema.Literals(["eq", "ne", "gt", "gte", "lt", "lte"]).annotate({
+    "description":
+      "Specifies the comparison operator: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `nin`.\n- `eq`: equals\n- `ne`: not equal\n- `gt`: greater than\n- `gte`: greater than or equal\n- `lt`: less than\n- `lte`: less than or equal\n- `in`: in\n- `nin`: not in\n",
+    "default": "eq"
+  }),
+  "key": Schema.String.annotate({ "description": "The key to compare against the value." }),
+  "value": Schema.Union([
+    Schema.String,
+    Schema.Number.check(Schema.isFinite()),
+    Schema.Boolean,
+    Schema.Array(ComparisonFilterValueItems)
+  ]).annotate({
+    "description": "The value to compare against the attribute key; supports string, number, or boolean types."
+  })
+}).annotate({
+  "title": "Comparison Filter",
+  "description":
+    "A filter used to compare a specified attribute key to a given value using a defined comparison operation.\n",
+  "identifier": "ComparisonFilter"
+})
+export type CreateFileRequest = {
+  readonly "file": string
+  readonly "purpose": FilePurpose
+  readonly "expires_after"?: FileExpirationAfter
+}
+export const CreateFileRequest = Schema.Struct({
+  "file": Schema.String.annotate({
+    "description": "The File object (not file name) to be uploaded.\n",
+    "format": "binary"
+  }),
+  "purpose": FilePurpose,
+  "expires_after": Schema.optionalKey(FileExpirationAfter)
+}).annotate({ "identifier": "CreateFileRequest" })
 export type Batch = {
   readonly "id": string
   readonly "object": "batch"
@@ -14026,87 +14082,26 @@ export const ModelIdsShared = Schema.Union([Schema.String, ChatModel]).annotate(
   "examples": ["gpt-4o"],
   "identifier": "ModelIdsShared"
 })
-export type ComparisonFilter = {
-  readonly "type": "eq" | "ne" | "gt" | "gte" | "lt" | "lte"
-  readonly "key": string
-  readonly "value": string | number | boolean | ReadonlyArray<ComparisonFilterValueItems>
+export type CodeInterpreterTool = {
+  readonly "type": "code_interpreter"
+  readonly "container": string | CodeInterpreterContainerAuto
 }
-export const ComparisonFilter = Schema.Struct({
-  "type": Schema.Literals(["eq", "ne", "gt", "gte", "lt", "lte"]).annotate({
-    "description":
-      "Specifies the comparison operator: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `nin`.\n- `eq`: equals\n- `ne`: not equal\n- `gt`: greater than\n- `gte`: greater than or equal\n- `lt`: less than\n- `lte`: less than or equal\n- `in`: in\n- `nin`: not in\n",
-    "default": "eq"
+export const CodeInterpreterTool = Schema.Struct({
+  "type": Schema.Literal("code_interpreter").annotate({
+    "description": "The type of the code interpreter tool. Always `code_interpreter`.\n"
   }),
-  "key": Schema.String.annotate({ "description": "The key to compare against the value." }),
-  "value": Schema.Union([
-    Schema.String,
-    Schema.Number.check(Schema.isFinite()),
-    Schema.Boolean,
-    Schema.Array(ComparisonFilterValueItems)
+  "container": Schema.Union([
+    Schema.String.annotate({ "description": "The container ID." }),
+    CodeInterpreterContainerAuto
   ]).annotate({
-    "description": "The value to compare against the attribute key; supports string, number, or boolean types."
+    "description":
+      "The code interpreter container. Can be a container ID or an object that\nspecifies uploaded file IDs to make available to your code, along with an\noptional `memory_limit` setting.\n"
   })
 }).annotate({
-  "title": "Comparison Filter",
-  "description":
-    "A filter used to compare a specified attribute key to a given value using a defined comparison operation.\n",
-  "identifier": "ComparisonFilter"
+  "title": "Code interpreter",
+  "description": "A tool that runs Python code to help generate a response to a prompt.\n",
+  "identifier": "CodeInterpreterTool"
 })
-export type CreateFileRequest = {
-  readonly "file": string
-  readonly "purpose": FilePurpose
-  readonly "expires_after"?: FileExpirationAfter
-}
-export const CreateFileRequest = Schema.Struct({
-  "file": Schema.String.annotate({
-    "description": "The File object (not file name) to be uploaded.\n",
-    "format": "binary"
-  }),
-  "purpose": FilePurpose,
-  "expires_after": Schema.optionalKey(FileExpirationAfter)
-}).annotate({ "identifier": "CreateFileRequest" })
-export type CreateModerationRequest = {
-  readonly "input": string | ReadonlyArray<string> | ReadonlyArray<ModerationImageURLInput | ModerationTextInput>
-  readonly "model"?:
-    | string
-    | "omni-moderation-latest"
-    | "omni-moderation-2024-09-26"
-    | "text-moderation-latest"
-    | "text-moderation-stable"
-}
-export const CreateModerationRequest = Schema.Struct({
-  "input": Schema.Union([
-    Schema.String.annotate({
-      "description": "A string of text to classify for moderation.",
-      "default": "",
-      "examples": ["I want to kill them."]
-    }),
-    Schema.Array(Schema.String.annotate({ "default": "", "examples": ["I want to kill them."] })).annotate({
-      "description": "An array of strings to classify for moderation."
-    }),
-    Schema.Array(Schema.Union([ModerationImageURLInput, ModerationTextInput])).annotate({
-      "title": "Moderation Multi Modal Array",
-      "description": "An array of multi-modal inputs to the moderation model."
-    })
-  ]).annotate({
-    "description":
-      "Input (or inputs) to classify. Can be a single string, an array of strings, or\nan array of multi-modal input objects similar to other models.\n"
-  }),
-  "model": Schema.optionalKey(
-    Schema.Union([
-      Schema.String,
-      Schema.Literals([
-        "omni-moderation-latest",
-        "omni-moderation-2024-09-26",
-        "text-moderation-latest",
-        "text-moderation-stable"
-      ])
-    ]).annotate({
-      "description":
-        "The content moderation model you would like to use. Learn more in\n[the moderation guide](https://platform.openai.com/docs/guides/moderation), and learn about\navailable models [here](https://platform.openai.com/docs/models#moderation).\n"
-    })
-  )
-}).annotate({ "identifier": "CreateModerationRequest" })
 export type AuditLogActor = {
   readonly "type"?: "session" | "api_key"
   readonly "session"?: AuditLogActorSession
@@ -14757,7 +14752,8 @@ export const ChunkingStrategyRequestParam = Schema.Union([
   AutoChunkingStrategyRequestParam,
   StaticChunkingStrategyRequestParam
 ]).annotate({
-  "description": "The chunking strategy used to chunk the file(s). If not set, will use the `auto` strategy.",
+  "description":
+    "The chunking strategy used to chunk the file(s). If not set, will use the `auto` strategy. Only applicable if `file_ids` is non-empty.",
   "identifier": "ChunkingStrategyRequestParam"
 })
 export type ChunkingStrategyResponse = StaticChunkingStrategyResponseParam | OtherChunkingStrategyResponseParam
@@ -15111,28 +15107,29 @@ export const Prompt = Schema.Union([
 export type ComputerAction =
   | ClickParam
   | DoubleClickAction
-  | Drag
+  | DragParam
   | KeyPressAction
-  | Move
-  | Screenshot
-  | Scroll
-  | Type
-  | Wait
+  | MoveParam
+  | ScreenshotParam
+  | ScrollParam
+  | TypeParam
+  | WaitParam
 export const ComputerAction = Schema.Union([
   ClickParam,
   DoubleClickAction,
-  Drag,
+  DragParam,
   KeyPressAction,
-  Move,
-  Screenshot,
-  Scroll,
-  Type,
-  Wait
+  MoveParam,
+  ScreenshotParam,
+  ScrollParam,
+  TypeParam,
+  WaitParam
 ]).annotate({ "identifier": "ComputerAction" })
 export type FunctionShellCallOutput = {
   readonly "type": "shell_call_output"
   readonly "id": string
   readonly "call_id": string
+  readonly "status": "in_progress" | "completed" | "incomplete"
   readonly "output": ReadonlyArray<FunctionShellCallOutputContent>
   readonly "max_output_length": number | null
   readonly "created_by"?: string
@@ -15146,6 +15143,10 @@ export const FunctionShellCallOutput = Schema.Struct({
     "description": "The unique ID of the shell call output. Populated when this item is returned via API."
   }),
   "call_id": Schema.String.annotate({ "description": "The unique ID of the shell tool call generated by the model." }),
+  "status": Schema.Literals(["in_progress", "completed", "incomplete"]).annotate({
+    "identifier": "LocalShellCallOutputStatusEnum",
+    "description": "The status of the shell call output. One of `in_progress`, `completed`, or `incomplete`."
+  }),
   "output": Schema.Array(FunctionShellCallOutputContent).annotate({
     "description": "An array of shell call output contents"
   }),
@@ -15169,6 +15170,7 @@ export type FunctionShellCallOutputItemParam = {
   readonly "call_id": string
   readonly "type": "shell_call_output"
   readonly "output": ReadonlyArray<FunctionShellCallOutputContentParam>
+  readonly "status"?: "in_progress" | "completed" | "incomplete" | null
   readonly "max_output_length"?: number | null
 }
 export const FunctionShellCallOutputItemParam = Schema.Struct({
@@ -15190,6 +15192,16 @@ export const FunctionShellCallOutputItemParam = Schema.Struct({
   "output": Schema.Array(FunctionShellCallOutputContentParam).annotate({
     "description": "Captured chunks of stdout and stderr output, along with their associated outcomes."
   }),
+  "status": Schema.optionalKey(
+    Schema.Union([
+      Schema.Literals(["in_progress", "completed", "incomplete"]).annotate({
+        "title": "Shell call status",
+        "description": "The status of the shell call output.",
+        "identifier": "FunctionShellCallItemStatus"
+      }),
+      Schema.Null
+    ])
+  ),
   "max_output_length": Schema.optionalKey(
     Schema.Union([
       Schema.Number.annotate({
@@ -15202,26 +15214,6 @@ export const FunctionShellCallOutputItemParam = Schema.Struct({
   "title": "Shell tool call output",
   "description": "The streamed output items emitted by a shell tool call.",
   "identifier": "FunctionShellCallOutputItemParam"
-})
-export type CodeInterpreterTool = {
-  readonly "type": "code_interpreter"
-  readonly "container": string | CodeInterpreterContainerAuto
-}
-export const CodeInterpreterTool = Schema.Struct({
-  "type": Schema.Literal("code_interpreter").annotate({
-    "description": "The type of the code interpreter tool. Always `code_interpreter`.\n"
-  }),
-  "container": Schema.Union([
-    Schema.String.annotate({ "description": "The container ID." }),
-    CodeInterpreterContainerAuto
-  ]).annotate({
-    "description":
-      "The code interpreter container. Can be a container ID or an object that\nspecifies uploaded file IDs to make available to your code, along with an\noptional `memory_limit` setting.\n"
-  })
-}).annotate({
-  "title": "Code interpreter",
-  "description": "A tool that runs Python code to help generate a response to a prompt.\n",
-  "identifier": "CodeInterpreterTool"
 })
 export type ImagesResponse = {
   readonly "created": number
@@ -15316,6 +15308,20 @@ export const ThreadListResource = Schema.Struct({
   "description": "A paginated list of ChatKit threads.",
   "identifier": "ThreadListResource"
 })
+export type CompoundFilter = {
+  readonly "type": "and" | "or"
+  readonly "filters": ReadonlyArray<ComparisonFilter | unknown>
+}
+export const CompoundFilter = Schema.Struct({
+  "type": Schema.Literals(["and", "or"]).annotate({ "description": "Type of operation: `and` or `or`." }),
+  "filters": Schema.Array(Schema.Union([ComparisonFilter, Schema.Unknown])).annotate({
+    "description": "Array of filters to combine. Items can be `ComparisonFilter` or `CompoundFilter`."
+  })
+}).annotate({
+  "title": "Compound Filter",
+  "description": "Combine multiple filters using `and` or `or`.",
+  "identifier": "CompoundFilter"
+})
 export type ListBatchesResponse = {
   readonly "data": ReadonlyArray<Batch>
   readonly "first_id"?: string
@@ -15365,20 +15371,6 @@ export const ModelIdsResponses = Schema.Union([
     "gpt-5.1-codex-max"
   ]).annotate({ "title": "ResponsesOnlyModel" })
 ]).annotate({ "examples": ["gpt-5.1"], "identifier": "ModelIdsResponses" })
-export type CompoundFilter = {
-  readonly "type": "and" | "or"
-  readonly "filters": ReadonlyArray<ComparisonFilter | unknown>
-}
-export const CompoundFilter = Schema.Struct({
-  "type": Schema.Literals(["and", "or"]).annotate({ "description": "Type of operation: `and` or `or`." }),
-  "filters": Schema.Array(Schema.Union([ComparisonFilter, Schema.Unknown])).annotate({
-    "description": "Array of filters to combine. Items can be `ComparisonFilter` or `CompoundFilter`."
-  })
-}).annotate({
-  "title": "Compound Filter",
-  "description": "Combine multiple filters using `and` or `or`.",
-  "identifier": "CompoundFilter"
-})
 export type AuditLog = {
   readonly "id": string
   readonly "type": AuditLogEventType
@@ -18603,12 +18595,6 @@ export const ThreadItem = Schema.Union([
   TaskItem,
   TaskGroupItem
 ]).annotate({ "title": "The thread item", "identifier": "ThreadItem" })
-export type ModelIdsCompaction = ModelIdsResponses | string | null
-export const ModelIdsCompaction = Schema.Union([ModelIdsResponses, Schema.String, Schema.Null]).annotate({
-  "description":
-    "Model ID used to generate the response, like `gpt-5` or `o3`. OpenAI offers a wide range of models with different capabilities, performance characteristics, and price points. Refer to the [model guide](https://platform.openai.com/docs/models) to browse and compare available models.",
-  "identifier": "ModelIdsCompaction"
-})
 export type VectorStoreSearchRequest = {
   readonly "query": string | ReadonlyArray<string>
   readonly "rewrite_query"?: boolean
@@ -18725,6 +18711,12 @@ export const FileSearchTool = Schema.Struct({
   "description":
     "A tool that searches for relevant content from uploaded files. Learn more about the [file search tool](https://platform.openai.com/docs/guides/tools-file-search).",
   "identifier": "FileSearchTool"
+})
+export type ModelIdsCompaction = ModelIdsResponses | string | null
+export const ModelIdsCompaction = Schema.Union([ModelIdsResponses, Schema.String, Schema.Null]).annotate({
+  "description":
+    "Model ID used to generate the response, like `gpt-5` or `o3`. OpenAI offers a wide range of models with different capabilities, performance characteristics, and price points. Refer to the [model guide](https://platform.openai.com/docs/models) to browse and compare available models.",
+  "identifier": "ModelIdsCompaction"
 })
 export type ListAuditLogsResponse = {
   readonly "object": "list"
@@ -27007,8 +26999,8 @@ export interface OpenAiClient {
   >
   /**
    * Upload a file that can be used across various endpoints. Individual files
-   * can be up to 512 MB, and the size of all files uploaded by one organization
-   * can be up to 1 TB.
+   * can be up to 512 MB, and each project can store up to 2.5 TB of files in
+   * total. There is no organization-wide storage limit.
    *
    * - The Assistants API supports files up to 2 million tokens and of specific
    *   file types. See the [Assistants Tools guide](https://platform.openai.com/docs/assistants/tools) for
